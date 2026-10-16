@@ -1,0 +1,210 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gastos_claros/shared/services/api_service.dart';
+import 'package:gastos_claros/shared/models/balance_response.dart';
+import 'package:gastos_claros/shared/models/registro.dart';
+import 'package:gastos_claros/shared/models/yape_extraction_result.dart';
+
+// ──────────────────────────────────────────────
+// API Service Provider (Singleton)
+// ──────────────────────────────────────────────
+
+final apiServiceProvider = Provider<ApiService>((ref) {
+  final service = ApiService();
+  ref.onDispose(() => service.dispose());
+  return service;
+});
+
+// ──────────────────────────────────────────────
+// Balance Provider
+// ──────────────────────────────────────────────
+
+/// Estado del filtro de tiempo seleccionado.
+final balanceFilterProvider = StateProvider<String>((ref) => '1M');
+
+/// Provider del saldo actual. Se refresca al cambiar el filtro.
+final balanceProvider = FutureProvider<BalanceResponse>((ref) async {
+  final filter = ref.watch(balanceFilterProvider);
+  final api = ref.read(apiServiceProvider);
+  return api.getBalance(filter: filter);
+});
+
+// ──────────────────────────────────────────────
+// History Providers
+// ──────────────────────────────────────────────
+
+/// Provider del historial de ingresos.
+final ingresosHistoryProvider = FutureProvider<List<Registro>>((ref) async {
+  final api = ref.read(apiServiceProvider);
+  return api.getHistory(type: 'ingresos', limit: 3);
+});
+
+/// Provider del historial de gastos.
+final gastosHistoryProvider = FutureProvider<List<Registro>>((ref) async {
+  final api = ref.read(apiServiceProvider);
+  return api.getHistory(type: 'gastos', limit: 3);
+});
+
+// ──────────────────────────────────────────────
+// Upload Yape Provider
+// ──────────────────────────────────────────────
+
+/// Estado del proceso de upload de capturas Yape.
+class UploadYapeState {
+  final bool isUploading;
+  final List<double> progressPerImage;
+  final List<YapeExtractionResult>? results;
+  final String? error;
+
+  const UploadYapeState({
+    this.isUploading = false,
+    this.progressPerImage = const [],
+    this.results,
+    this.error,
+  });
+
+  UploadYapeState copyWith({
+    bool? isUploading,
+    List<double>? progressPerImage,
+    List<YapeExtractionResult>? results,
+    String? error,
+  }) {
+    return UploadYapeState(
+      isUploading: isUploading ?? this.isUploading,
+      progressPerImage: progressPerImage ?? this.progressPerImage,
+      results: results ?? this.results,
+      error: error,
+    );
+  }
+}
+
+/// Notifier para manejar el upload de capturas Yape.
+class UploadYapeNotifier extends StateNotifier<UploadYapeState> {
+  final ApiService _api;
+
+  UploadYapeNotifier(this._api) : super(const UploadYapeState());
+
+  /// Sube las capturas Yape y extrae datos con IA.
+  Future<void> uploadImages({
+    required List<String> base64Images,
+    required String type,
+  }) async {
+    // Inicializar progreso
+    state = UploadYapeState(
+      isUploading: true,
+      progressPerImage: List.filled(base64Images.length, 0.0),
+    );
+
+    try {
+      // Simular progreso incremental mientras se procesa
+      _simulateProgress(base64Images.length);
+
+      final results = await _api.uploadYapeScreenshots(
+        images: base64Images,
+        type: type,
+      );
+
+      state = UploadYapeState(
+        isUploading: false,
+        progressPerImage: List.filled(base64Images.length, 100.0),
+        results: results,
+      );
+    } catch (e) {
+      state = UploadYapeState(
+        isUploading: false,
+        error: e.toString(),
+      );
+    }
+  }
+
+  /// Simula progreso visual mientras se espera la respuesta del backend.
+  void _simulateProgress(int imageCount) async {
+    for (int step = 1; step <= 8; step++) {
+      await Future.delayed(const Duration(milliseconds: 500));
+      if (!state.isUploading) return;
+
+      final progress = List<double>.generate(
+        imageCount,
+        (i) => (step * 12.0).clamp(0, 90),
+      );
+      state = state.copyWith(progressPerImage: progress);
+    }
+  }
+
+  /// Limpia los resultados.
+  void reset() {
+    state = const UploadYapeState();
+  }
+}
+
+final uploadYapeProvider =
+    StateNotifierProvider<UploadYapeNotifier, UploadYapeState>((ref) {
+  final api = ref.read(apiServiceProvider);
+  return UploadYapeNotifier(api);
+});
+
+// ──────────────────────────────────────────────
+// Manual Entry Provider
+// ──────────────────────────────────────────────
+
+/// Estado del guardado manual.
+class ManualEntryState {
+  final bool isSaving;
+  final String? savedId;
+  final String? error;
+
+  const ManualEntryState({
+    this.isSaving = false,
+    this.savedId,
+    this.error,
+  });
+}
+
+class ManualEntryNotifier extends StateNotifier<ManualEntryState> {
+  final ApiService _api;
+
+  ManualEntryNotifier(this._api) : super(const ManualEntryState());
+
+  /// Guarda un registro manual.
+  Future<bool> save({
+    required double monto,
+    String? nombre,
+    required String descripcion,
+    required DateTime fecha,
+    required String type,
+  }) async {
+    state = const ManualEntryState(isSaving: true);
+
+    try {
+      final id = await _api.saveManualEntry(
+        monto: monto,
+        nombre: nombre,
+        descripcion: descripcion,
+        fecha: fecha,
+        type: type,
+      );
+
+      state = ManualEntryState(isSaving: false, savedId: id);
+      return true;
+    } catch (e) {
+      state = ManualEntryState(isSaving: false, error: e.toString());
+      return false;
+    }
+  }
+
+  void reset() {
+    state = const ManualEntryState();
+  }
+}
+
+final manualEntryProvider =
+    StateNotifierProvider<ManualEntryNotifier, ManualEntryState>((ref) {
+  final api = ref.read(apiServiceProvider);
+  return ManualEntryNotifier(api);
+});
+
+// ──────────────────────────────────────────────
+// Navigation Provider
+// ──────────────────────────────────────────────
+
+/// Índice del tab seleccionado en el Bottom Navigation Bar.
+final selectedTabProvider = StateProvider<int>((ref) => 0);

@@ -1,0 +1,54 @@
+# ─── Entorno ───────────────────────────────────────────
+.env
+*.env
+.env.*
+!.env.example
+
+# ─── Node.js / Backend ─────────────────────────────────
+backend/node_modules/
+backend/.netlify/
+backend/package-lock.json
+
+# ─── Flutter / Dart ────────────────────────────────────
+frontend/.dart_tool/
+frontend/.flutter-plugins
+frontend/.flutter-plugins-dependencies
+frontend/.packages
+frontend/build/
+frontend/.pub-cache/
+frontend/pubspec.lock
+
+# ─── Android ───────────────────────────────────────────
+frontend/android/.gradle/
+frontend/android/local.properties
+frontend/android/app/debug/
+frontend/android/app/release/
+frontend/android/key.properties
+
+# ─── iOS ───────────────────────────────────────────────
+frontend/ios/Pods/
+frontend/ios/.symlinks/
+frontend/ios/Flutter/App.framework
+frontend/ios/Flutter/Flutter.framework
+frontend/ios/Flutter/Flutter.podspec
+frontend/ios/Flutter/Generated.xcconfig
+frontend/ios/Flutter/app.flx
+frontend/ios/Flutter/app.zip
+frontend/ios/ServiceDefinitions.json
+
+# ─── macOS / Windows / Linux ───────────────────────────
+frontend/macos/Pods/
+frontend/linux/flutter/generated_plugin_registrant.cc
+frontend/linux/flutter/generated_plugin_registrant.h
+frontend/windows/flutter/generated_plugin_registrant.cc
+frontend/windows/flutter/generated_plugin_registrant.h
+
+# ─── OS ────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+
+# ─── IDE ───────────────────────────────────────────────
+.vscode/
+.idea/
+*.iml
