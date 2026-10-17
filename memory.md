@@ -140,3 +140,7 @@
 ## Actualización — 16/10/2026
 
 Se reemplazó Gemini Vision por OpenCV/Tesseract locales en el backend. Gemini se reutiliza en el asistente financiero con selector de período y consulta de datos almacenados. Se añadieron edición y eliminación desde ambos historiales, conservando cifrado AES y actualizando saldo e historiales. El formulario de una captura ya guardada actualiza su registro para evitar duplicados. Los requisitos históricos sobre Gemini Vision quedan sustituidos por esta implementación.
+
+## Verificación de APK — 16/10/2026
+
+Se corrigió el permiso INTERNET de Android y la URL de producción a `https://gastosclaross.netlify.app/api`, confirmada por el usuario. El modelo `gemini-2.5-flash` respondió 404 por no estar disponible para esta cuenta; se actualizó a `gemini-3.8-flash`, verificado contra Gemini y MongoDB con respuesta correcta del asistente. Las 15 pruebas del backend y 11 de Flutter pasan. Se preparan APK release y vista previa web local. La firma release usa la clave debug ya configurada por el proyecto, adecuada para instalación directa y pruebas.

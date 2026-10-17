@@ -5,7 +5,7 @@ class ApiConfig {
   // ─── URLs ──────────────────────────────────────────────────────────────────
 
   /// URL de producción (Netlify). Actualizar con la URL real del deploy.
-  static const String _prodUrl = 'https://gastosclaros.netlify.app/api';
+  static const String _prodUrl = 'https://gastosclaross.netlify.app/api';
 
   /// URL de desarrollo local (netlify dev).
   static const String _devUrl = 'http://localhost:8888/api';

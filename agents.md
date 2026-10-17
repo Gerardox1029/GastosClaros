@@ -166,6 +166,6 @@
 
 ### Configuración y verificación
 
-`GEMINI_API_KEY` se usa exclusivamente para el chat. `GEMINI_MODEL` permite elegir modelo (predeterminado `gemini-2.5-flash`). MongoDB y cifrado conservan `MONGO_URI` y `ENCRYPTION_KEY`. En Netlify se externalizan OpenCV, Tesseract, los datos españoles y Sharp para incluir los archivos WASM, workers y recursos nativos. Instalar con `npm install` en `backend/`. OCR es local al servidor; la aplicación sigue subiendo las capturas a su backend.
+`GEMINI_API_KEY` se usa exclusivamente para el chat. `GEMINI_MODEL` permite elegir modelo (predeterminado `gemini-3.8-flash`). MongoDB y cifrado conservan `MONGO_URI` y `ENCRYPTION_KEY`. En Netlify se externalizan OpenCV, Tesseract, los datos españoles y Sharp para incluir los archivos WASM, workers y recursos nativos. Instalar con `npm install` en `backend/`. OCR es local al servidor; la aplicación sigue subiendo las capturas a su backend.
 
 Pruebas: `cd backend && npm test -- --runInBand`; `cd frontend && flutter test`. Las pruebas del asistente y de persistencia usan servicios simulados; la disponibilidad real depende de las credenciales y servicios configurados.
