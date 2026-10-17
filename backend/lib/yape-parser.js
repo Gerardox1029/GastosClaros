@@ -37,6 +37,12 @@ function parseYapeText(text) {
   }
   // A missing receipt date requires manual review rather than silently dating it today.
   if (!fecha) throw new Error('No se pudo leer la fecha. Revisa la captura o registra los datos manualmente.');
-  return { monto, nombre, descripcion: message?.[1]?.trim().slice(0, 500) || 'Pago Yape', fecha };
+  const dateIndex = lines.findIndex((line) => numeric ? line.includes(numeric[0]) : line.includes(named?.[0]));
+  const following = lines[dateIndex + 1] || '';
+  const note = dateIndex >= 0 && !/c[oó]digo|seguridad|datos de|celular|destino|operaci[oó]n/i.test(following)
+    ? following.replace(/^(?:EJ?|[■▣□]+)\s+/u, '').trim() : '';
+  const operation = text.match(/Nro\.?\s*(?:de\s*)?operaci[oó]n\s*[:#]?\s*(\d{6,})/i);
+  return { monto, nombre, descripcion: (message?.[1]?.trim() || note || 'Pago Yape').slice(0, 500),
+    fecha, ...(operation ? { operationId: operation[1] } : {}) };
 }
 module.exports = { parseYapeText };

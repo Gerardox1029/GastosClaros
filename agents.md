@@ -34,7 +34,7 @@
 ### Flujo detallado:
 1. **Flutter** envía requests HTTP (GET/POST) a los endpoints de Netlify Functions.
 2. **Netlify Functions** procesa la request, conecta con MongoDB Atlas (conexión cacheada para reducir cold-start).
-3. Para OCR: Backend recibe imágenes base64 → preprocesa con OpenCV → reconoce texto con Tesseract (español) → extrae y valida campos → guarda en MongoDB → retorna datos al Frontend. Las capturas no se envían a Gemini.
+3. Para OCR: Backend recibe imágenes base64 → preprocesa con OpenCV → reconoce texto con Tesseract (español) → extrae y valida campos → retorna datos al Frontend → el usuario revisa y guarda en MongoDB. Las capturas no se envían a Gemini.
 4. Los campos `nombre` y `descripcion` se **cifran con AES** antes de guardar y se **descifran** al leer.
 
 ---
@@ -75,7 +75,7 @@
 ```
 
 ### `POST /api/upload-yape`
-- **Descripción:** Recibe imágenes (base64/multipart), extrae datos con OpenCV y Tesseract locales, guarda en MongoDB.
+- **Descripción:** Recibe imágenes base64 y extrae datos con OpenCV y Tesseract locales, sin guardar en MongoDB.
 - **Body:**
 ```json
 {
@@ -92,7 +92,9 @@
       "monto": 25.00,
       "descripcion": "Pago por servicio",
       "fecha": "2026-10-15T10:00:00-05:00",
-      "saved": true
+      "saved": false,
+      "extracted": true,
+      "receiptKey": "sha256-del-comprobante"
     }
   ]
 }
@@ -162,10 +164,18 @@
 - **OCR local en el backend:** OpenCV.js (WebAssembly) transforma la imagen a escala de grises, reduce ruido y aplica umbral de Otsu. Sharp decodifica PNG/JPEG/WebP; Tesseract.js reconoce español con datos incluidos en el paquete. No requiere binarios Python ni descargar modelos al atender solicitudes. La interfaz conserva la selección de capturas, progreso y tarjetas. Si monto o fecha no se pueden leer, esa captura muestra un error para su revisión manual; no se guarda con datos inventados.
 - **Asistente financiero:** `POST /api/financial-assistant`, body `{ message, period, history? }`. `period`: `1D` (hoy), `7D` o `1M` (últimos 30 días), incluyendo el día actual según UTC-5. Consulta ambas colecciones; agrega todos los registros del período y envía a Gemini los totales y hasta 100 movimientos recientes por tipo. `history`: hasta 20 mensajes `{role: "user" | "model", text}`. Respuesta: `{ answer, desde, hasta }`, con fin exclusivo. La burbuja lateral abre el chat y permite elegir período y generar reportes. Cambiar período inicia una conversación nueva.
 - **Editar/eliminar:** `PATCH /api/record`, body `{ id, type, monto, nombre, descripcion, fecha }`; `DELETE /api/record`, body `{ id, type }`. `type`: `ingreso` o `gasto`. Valida ObjectId y campos, cifra datos sensibles y conserva el origen del registro. Responde 404 si ya no existe. Ambos historiales tienen lápiz y abren el formulario actual, con eliminación dentro del modal.
-- **Evitar duplicados:** al guardar el formulario autocompletado de una captura ya registrada se actualiza su ID, en lugar de insertar nuevamente.
+- **Evitar duplicados:** subir una captura no modifica el saldo; el guardado explícito usa una identidad estable y una inserción atómica que impide repetir el comprobante.
 
 ### Configuración y verificación
 
 `GEMINI_API_KEY` se usa exclusivamente para el chat. `GEMINI_MODEL` permite elegir modelo (predeterminado `gemini-3.8-flash`). MongoDB y cifrado conservan `MONGO_URI` y `ENCRYPTION_KEY`. En Netlify se externalizan OpenCV, Tesseract, los datos españoles y Sharp para incluir los archivos WASM, workers y recursos nativos. Instalar con `npm install` en `backend/`. OCR es local al servidor; la aplicación sigue subiendo las capturas a su backend.
 
 Pruebas: `cd backend && npm test -- --runInBand`; `cd frontend && flutter test`. Las pruebas del asistente y de persistencia usan servicios simulados; la disponibilidad real depende de las credenciales y servicios configurados.
+
+## Corrección OCR y guardado — captura real de Yape
+
+El modo de segmentación de bloque único (PSM 6) omitía el monto en tipografía grande. OpenCV ahora detecta la tarjeta clara del comprobante para excluir el encabezado decorativo; Tesseract usa segmentación automática (PSM 3), con una segunda lectura de texto disperso (PSM 11) sobre escala de grises si la primera no se puede interpretar. Se lee también la nota sin etiqueta situada después de la fecha y el número de operación.
+
+`POST /api/upload-yape` **solo extrae**; ya no conecta con MongoDB ni modifica el saldo. Devuelve `{ extracted: true, saved: false, receiptKey, ...campos }` por captura válida. La app autocompleta el formulario con `extracted`, sin confundir reconocimiento con persistencia. Cada captura se revisa y guarda individualmente; al guardar una, se muestra la siguiente pendiente si hay varias.
+
+`POST /api/manual-entry` acepta `receiptKey` opcional (SHA-256 hexadecimal): el ID del registro se deriva de esa identidad y se usa una inserción atómica con `$setOnInsert`. Reintentar guardar el mismo comprobante no agrega dinero otra vez. La identidad utiliza número de operación, fecha y monto cuando están disponibles, o la imagen como respaldo. Sin `receiptKey`, el formulario manual mantiene su flujo habitual. Los duplicados históricos no se eliminan automáticamente.

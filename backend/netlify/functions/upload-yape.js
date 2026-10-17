@@ -1,7 +1,4 @@
-const { connectToDatabase } = require('../../lib/db');
-const Ingreso = require('../../models/Ingreso');
-const Gasto = require('../../models/Gasto');
-const { encryptDocument } = require('../../lib/encryption');
+const { createHash } = require('crypto');
 const { createReceiptReader } = require('../../lib/local-ocr');
 const { reply } = require('../../lib/http');
 
@@ -17,19 +14,20 @@ exports.handler = async (event) => {
   }
   let reader;
   try {
-    await connectToDatabase();
     reader = await createReceiptReader();
-    const Model = body.type === 'ingreso' ? Ingreso : Gasto;
     const results = [];
     for (const [index, image] of body.images.entries()) {
       try {
         const fields = await reader.read(image);
-        const doc = { ...fields, fecha: new Date(fields.fecha), tipo_registro: 'ai_yape' };
-        const saved = await Model.create(encryptDocument(doc));
-        results.push({ ...doc, saved: true, id: saved._id.toString(), captureIndex: index + 1 });
+        const identity = fields.operationId
+          ? `yape|${fields.operationId}|${fields.fecha}|${fields.monto}`
+          : image.replace(/^data:image\/[^;]+;base64,/, '');
+        const receiptKey = createHash('sha256').update(identity).digest('hex');
+        results.push({ ...fields, receiptKey, extracted: true, saved: false, captureIndex: index + 1 });
       } catch (error) {
         results.push({ nombre: '', monto: 0, descripcion: 'Captura no procesada', fecha: new Date().toISOString(),
-          saved: false, error: 'No se pudo leer la captura. Revisa monto y fecha o ingresa los datos manualmente.', captureIndex: index + 1 });
+          saved: false, extracted: false, error: /^No se pudo leer (el monto|la fecha)/.test(error.message)
+            ? error.message : 'No se pudo procesar la imagen. Usa una captura PNG o JPG nítida.', captureIndex: index + 1 });
       }
     }
     return reply(200, { results });

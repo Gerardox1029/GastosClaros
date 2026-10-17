@@ -5,6 +5,9 @@ class YapeExtractionResult {
   final String descripcion;
   final DateTime fecha;
   final bool saved;
+  final bool extracted;
+  final String? receiptKey;
+  bool get isRecognized => saved || extracted;
   final String? id;
   final String? error;
   final int captureIndex;
@@ -15,6 +18,8 @@ class YapeExtractionResult {
     required this.descripcion,
     required this.fecha,
     required this.saved,
+    this.extracted = false,
+    this.receiptKey,
     this.id,
     this.error,
     required this.captureIndex,
@@ -27,6 +32,8 @@ class YapeExtractionResult {
       descripcion: json['descripcion'] as String? ?? '',
       fecha: DateTime.parse(json['fecha'] as String),
       saved: json['saved'] as bool? ?? false,
+      extracted: json['extracted'] as bool? ?? false,
+      receiptKey: json['receiptKey'] as String?,
       id: json['id'] as String?,
       error: json['error'] as String?,
       captureIndex: json['captureIndex'] as int? ?? 0,

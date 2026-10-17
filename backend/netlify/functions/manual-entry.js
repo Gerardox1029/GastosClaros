@@ -47,9 +47,14 @@ exports.handler = async (event) => {
     }
 
     // Validar campos requeridos
-    const { monto, nombre, descripcion, fecha, type } = body;
+    const { monto, nombre, descripcion, fecha, type, receiptKey } = body;
 
-    if (!monto || typeof monto !== 'number' || monto <= 0) {
+    if (receiptKey !== undefined && (typeof receiptKey !== 'string' || !/^[a-f0-9]{64}$/.test(receiptKey))) {
+      return { statusCode: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+        body: JSON.stringify({ error: 'Identificador de captura inválido.' }) };
+    }
+
+    if (!monto || typeof monto !== 'number' || !Number.isFinite(monto) || monto < 0.01) {
       return {
         statusCode: 400,
         headers: { 'Content-Type': 'application/json' },
@@ -83,7 +88,7 @@ exports.handler = async (event) => {
       nombre: sanitizedNombre,
       descripcion: sanitizedDescripcion,
       fecha: fecha ? new Date(fecha) : new Date(),
-      tipo_registro: 'manual',
+      tipo_registro: receiptKey ? 'ai_yape' : 'manual',
     };
 
     // Cifrar campos sensibles
@@ -91,7 +96,14 @@ exports.handler = async (event) => {
 
     // Seleccionar modelo y guardar
     const Model = type === 'ingreso' ? Ingreso : Gasto;
-    const saved = await Model.create(encryptedData);
+    // The same receipt (including retries) always targets the same primary key.
+    // OCR itself never writes: only this explicit save inserts a record.
+    const saved = receiptKey
+      ? await Model.findOneAndUpdate(
+          { _id: receiptKey.slice(0, 24) }, { $setOnInsert: encryptedData },
+          { upsert: true, new: true, runValidators: true },
+        )
+      : await Model.create(encryptedData);
 
     return {
       statusCode: 201,

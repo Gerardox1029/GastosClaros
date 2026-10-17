@@ -1,7 +1,7 @@
 name: gastos_claros
 description: "Una micro-app simple que gestiona los gastos a partir de un saldo variable."
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.0.1+2
 
 environment:
   sdk: ^3.5.0

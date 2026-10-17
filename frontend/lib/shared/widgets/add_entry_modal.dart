@@ -38,6 +38,8 @@ class _AddEntryModalState extends ConsumerState<AddEntryModal>
   bool _editingBusy = false;
   String? _editError;
   String? _extractedId;
+  YapeExtractionResult? _activeCapture;
+  final Map<String, String> _savedCaptureIds = {};
 
   bool get isIngreso => widget.type == 'ingreso';
   String get typeLabel => isIngreso ? 'Saldo' : 'Gasto';
@@ -88,6 +90,11 @@ class _AddEntryModalState extends ConsumerState<AddEntryModal>
         setState(() {
           _selectedImages = images;
           _hasExtracted = false;
+          _activeCapture = null;
+          _extractedId = null;
+          _montoCtrl.clear();
+          _nombreCtrl.clear();
+          _descripcionCtrl.clear();
         });
         await _processImages();
       }
@@ -122,15 +129,6 @@ class _AddEntryModalState extends ConsumerState<AddEntryModal>
       );
 
       if (!mounted) return;
-      final state = ref.read(uploadYapeProvider);
-      if (state.results != null && state.results!.isNotEmpty) {
-        final result = state.results!.firstWhere(
-          (result) => result.saved,
-          orElse: () => state.results!.first,
-        );
-        if (result.saved) _populateFromResult(result);
-        setState(() => _hasExtracted = true);
-      }
     } catch (error) {
       if (mounted) uploadNotifier.setError(error.toString());
     }
@@ -145,7 +143,8 @@ class _AddEntryModalState extends ConsumerState<AddEntryModal>
       _selectedDate = DateTime(_selectedDate.year, _selectedDate.month,
           _selectedDate.day, _selectedDate.hour, _selectedDate.minute,
           _selectedDate.second, _selectedDate.millisecond, _selectedDate.microsecond);
-      _extractedId = result.id;
+      _activeCapture = result;
+      _extractedId = _savedCaptureIds[result.receiptKey] ?? result.id;
     });
     ref.invalidate(balanceProvider);
     ref.invalidate(ingresosHistoryProvider);
@@ -177,6 +176,8 @@ class _AddEntryModalState extends ConsumerState<AddEntryModal>
   }
 
   Future<void> _submit() async {
+    if (ref.read(manualEntryProvider).isSaving || _editingBusy ||
+        ref.read(uploadYapeProvider).isUploading) return;
     if (!_formKey.currentState!.validate()) return;
 
     final monto = double.tryParse(_montoCtrl.text.replaceAll(',', '.'));
@@ -193,15 +194,28 @@ class _AddEntryModalState extends ConsumerState<AddEntryModal>
           descripcion: _descripcionCtrl.text.trim(),
           fecha: _peruDate,
           type: widget.type,
+          receiptKey: _activeCapture?.receiptKey,
         );
 
     if (success && mounted) {
       final messenger = ScaffoldMessenger.of(context);
+      final captureKey = _activeCapture?.receiptKey;
+      if (captureKey != null) {
+        _savedCaptureIds[captureKey] = ref.read(manualEntryProvider).savedId!;
+      }
       // Refrescar datos
       ref.invalidate(balanceProvider);
       ref.invalidate(ingresosHistoryProvider);
       ref.invalidate(gastosHistoryProvider);
       ref.read(manualEntryProvider.notifier).reset();
+      final pending = ref.read(uploadYapeProvider).results?.where((capture) =>
+          capture.isRecognized && capture.receiptKey != null &&
+          !_savedCaptureIds.containsKey(capture.receiptKey)).toList() ?? [];
+      if (captureKey != null && pending.isNotEmpty) {
+        _populateFromResult(pending.first);
+        messenger.showSnackBar(const SnackBar(content: Text('Captura guardada. Revisa la siguiente.')));
+        return;
+      }
       Navigator.of(context).pop();
       _showSuccessSnack(messenger);
     }
@@ -264,6 +278,12 @@ class _AddEntryModalState extends ConsumerState<AddEntryModal>
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(uploadYapeProvider, (previous, next) {
+      if (widget.record != null || next.results == null || previous?.results == next.results) return;
+      final recognized = next.results!.where((result) => result.isRecognized);
+      if (recognized.isNotEmpty) _populateFromResult(recognized.first);
+      setState(() => _hasExtracted = true);
+    });
     final uploadState = ref.watch(uploadYapeProvider);
     final entryState = ref.watch(manualEntryProvider);
 
@@ -699,12 +719,14 @@ class _AddEntryModalState extends ConsumerState<AddEntryModal>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Capturas procesadas',
+          'Capturas listas: revisa y guarda cada una',
           style: Theme.of(context).textTheme.labelMedium,
         ),
+        const Text('El saldo cambia solo al guardar.',
+            style: TextStyle(color: AppColors.mutedText, fontSize: 11)),
         const SizedBox(height: AppSpacing.sm),
         SizedBox(
-          height: 120,
+          height: 160,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: results.length,
@@ -712,7 +734,7 @@ class _AddEntryModalState extends ConsumerState<AddEntryModal>
             itemBuilder: (context, i) {
               final result = results[i];
               return GestureDetector(
-                onTap: result.saved ? () => _populateFromResult(result) : null,
+                onTap: result.isRecognized ? () => _populateFromResult(result) : null,
                 child: Container(
                   width: 180,
                   padding: const EdgeInsets.all(AppSpacing.md),
@@ -720,7 +742,7 @@ class _AddEntryModalState extends ConsumerState<AddEntryModal>
                     color: AppColors.deepPurpleBg,
                     borderRadius: BorderRadius.circular(AppRadius.captureCard),
                     border: Border.all(
-                      color: result.saved
+                      color: result.isRecognized
                           ? AppColors.successGreen.withOpacity(0.3)
                           : AppColors.dangerRed.withOpacity(0.3),
                     ),
@@ -757,19 +779,19 @@ class _AddEntryModalState extends ConsumerState<AddEntryModal>
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                      Text(
-                        result.saved
+                      Flexible(child: Text(
+                        result.isRecognized
                             ? result.descripcion
                             : result.error ?? result.descripcion,
                         style: TextStyle(
-                          color: result.saved
+                          color: result.isRecognized
                               ? AppColors.mutedText
                               : AppColors.dangerRed,
                           fontSize: 11,
                         ),
                         maxLines: 3,
                         overflow: TextOverflow.ellipsis,
-                      ),
+                      )),
                     ],
                   ),
                 ),

@@ -14,3 +14,9 @@ test('daily range follows Peru midnight even when UTC is the next day', () => {
     start: new Date('2026-10-16T05:00:00Z'), end: new Date('2026-10-17T05:00:00Z'),
   });
 });
+
+test('reads Yape layout with a large integer amount and an unlabeled note', () => {
+  const result = parseYapeText('¡Yapeaste!\nS/75\nPersona Prue*\n15 oct. 2026 | (9) 11:21 a.m.\nEJ Mensaje de prueba\nCÓDIGO DE SEGURIDAD 3 2 4\nDATOS DE LA TRANSACCIÓN\nNro. de operación 12345678');
+  expect(result).toEqual({ monto: 75, nombre: 'Persona Prue*', descripcion: 'Mensaje de prueba',
+    fecha: '2026-10-15T16:21:00.000Z', operationId: '12345678' });
+});

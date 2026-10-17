@@ -115,6 +115,7 @@ class ApiService {
     required String descripcion,
     required DateTime fecha,
     required String type,
+    String? receiptKey,
   }) async {
     try {
       final uri = Uri.parse(ApiConfig.manualEntry);
@@ -124,6 +125,7 @@ class ApiService {
         'descripcion': descripcion,
         'fecha': fecha.toIso8601String(),
         'type': type,
+        if (receiptKey != null) 'receiptKey': receiptKey,
       });
 
       final response = await _client

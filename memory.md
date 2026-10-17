@@ -144,3 +144,7 @@ Se reemplazó Gemini Vision por OpenCV/Tesseract locales en el backend. Gemini s
 ## Verificación de APK — 16/10/2026
 
 Se corrigió el permiso INTERNET de Android y la URL de producción a `https://gastosclaross.netlify.app/api`, confirmada por el usuario. El modelo `gemini-2.5-flash` respondió 404 por no estar disponible para esta cuenta; se actualizó a `gemini-3.8-flash`, verificado contra Gemini y MongoDB con respuesta correcta del asistente. Las 15 pruebas del backend y 11 de Flutter pasan. Se preparan APK release y vista previa web local. La firma release usa la clave debug ya configurada por el proyecto, adecuada para instalación directa y pruebas.
+
+## Corrección con comprobante real — 16/10/2026
+
+Se reprodujo que PSM 6 omitía el monto de gran tamaño. Se corrigió mediante detección de la tarjeta clara con OpenCV y Tesseract PSM 3/11; la captura aportada se leyó con todos los campos y la nota sin etiqueta. Extracción separada de persistencia: subir imágenes no altera el saldo; Guardar usa identidad del comprobante y upsert atómico para prevenir duplicados por reintentos. La UI bloquea el doble envío y mantiene la revisión individual de múltiples capturas. Las imágenes privadas de prueba no se incluyen en Git.

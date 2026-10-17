@@ -205,6 +205,7 @@ class ManualEntryNotifier extends StateNotifier<ManualEntryState> {
     required String descripcion,
     required DateTime fecha,
     required String type,
+    String? receiptKey,
   }) async {
     state = const ManualEntryState(isSaving: true);
 
@@ -215,6 +216,7 @@ class ManualEntryNotifier extends StateNotifier<ManualEntryState> {
         descripcion: descripcion,
         fecha: fecha,
         type: type,
+        receiptKey: receiptKey,
       );
 
       state = ManualEntryState(isSaving: false, savedId: id);
