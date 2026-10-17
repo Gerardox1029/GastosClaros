@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gastos_claros/core/theme.dart';
 import 'package:gastos_claros/features/splash/splash_screen.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await initializeDateFormatting('es_PE');
   runApp(
     const ProviderScope(
       child: GastosClarosApp(),

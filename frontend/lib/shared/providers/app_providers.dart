@@ -54,12 +54,14 @@ class UploadYapeState {
   final List<double> progressPerImage;
   final List<YapeExtractionResult>? results;
   final String? error;
+  final String? status;
 
   const UploadYapeState({
     this.isUploading = false,
     this.progressPerImage = const [],
     this.results,
     this.error,
+    this.status,
   });
 
   UploadYapeState copyWith({
@@ -67,12 +69,14 @@ class UploadYapeState {
     List<double>? progressPerImage,
     List<YapeExtractionResult>? results,
     String? error,
+    String? status,
   }) {
     return UploadYapeState(
       isUploading: isUploading ?? this.isUploading,
       progressPerImage: progressPerImage ?? this.progressPerImage,
       results: results ?? this.results,
       error: error,
+      status: status ?? this.status,
     );
   }
 }
@@ -83,6 +87,33 @@ class UploadYapeNotifier extends StateNotifier<UploadYapeState> {
 
   UploadYapeNotifier(this._api) : super(const UploadYapeState());
 
+  void setError(String message) {
+    state = UploadYapeState(
+      error: message,
+      status: 'No se pudieron procesar las capturas',
+    );
+  }
+
+  void prepareImages(int imageCount) {
+    state = UploadYapeState(
+      isUploading: true,
+      progressPerImage: List.filled(imageCount, 0),
+      status: 'Preparando imágenes...',
+    );
+  }
+
+  void updatePreparationProgress(int completed, int total) {
+    if (!state.isUploading || total == 0) return;
+    final progress = List<double>.generate(
+      total,
+      (index) => index < completed ? 10 : 0,
+    );
+    state = state.copyWith(
+      progressPerImage: progress,
+      status: 'Preparando imagen $completed de $total...',
+    );
+  }
+
   /// Sube las capturas Yape y extrae datos con IA.
   Future<void> uploadImages({
     required List<String> base64Images,
@@ -92,6 +123,7 @@ class UploadYapeNotifier extends StateNotifier<UploadYapeState> {
     state = UploadYapeState(
       isUploading: true,
       progressPerImage: List.filled(base64Images.length, 0.0),
+      status: 'Extrayendo datos con OCR local...',
     );
 
     try {
@@ -107,11 +139,13 @@ class UploadYapeNotifier extends StateNotifier<UploadYapeState> {
         isUploading: false,
         progressPerImage: List.filled(base64Images.length, 100.0),
         results: results,
+        status: 'Procesamiento completado',
       );
     } catch (e) {
       state = UploadYapeState(
         isUploading: false,
         error: e.toString(),
+        status: 'No se pudieron procesar las capturas',
       );
     }
   }

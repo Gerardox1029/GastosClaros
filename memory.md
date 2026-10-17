@@ -1,7 +1,7 @@
 # GastosClaros — Memory & State Log
 
 > Archivo de estado del agente: rastrea lo construido, lo pendiente, errores comunes y decisiones técnicas.
-> Última actualización: 2026-10-15 (UTC-5, Perú)
+> Última actualización: 2026-10-16 (UTC-5, Perú)
 
 ---
 
@@ -136,3 +136,7 @@
 5. **Configurar `.env`** real con credenciales (MongoDB, Gemini, ENCRYPTION_KEY).
 6. **Deploy a Netlify** → conectar repo + configurar env vars en el panel.
 7. **Prueba end-to-end** → Splash → Dashboard → Agregar entrada manual → Ver historial.
+
+## Actualización — 16/10/2026
+
+Se reemplazó Gemini Vision por OpenCV/Tesseract locales en el backend. Gemini se reutiliza en el asistente financiero con selector de período y consulta de datos almacenados. Se añadieron edición y eliminación desde ambos historiales, conservando cifrado AES y actualizando saldo e historiales. El formulario de una captura ya guardada actualiza su registro para evitar duplicados. Los requisitos históricos sobre Gemini Vision quedan sustituidos por esta implementación.

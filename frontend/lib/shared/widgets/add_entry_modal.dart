@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:io';
+import 'package:gastos_claros/shared/models/registro.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -7,7 +7,6 @@ import 'package:omni_datetime_picker/omni_datetime_picker.dart';
 import 'package:gastos_claros/core/theme.dart';
 import 'package:gastos_claros/shared/providers/app_providers.dart';
 import 'package:gastos_claros/shared/widgets/currency_widgets.dart';
-import 'package:gastos_claros/shared/widgets/loading_spinner.dart';
 import 'package:gastos_claros/shared/models/yape_extraction_result.dart';
 
 /// Modal para agregar un Saldo (ingreso) o Gasto.
@@ -15,8 +14,9 @@ import 'package:gastos_claros/shared/models/yape_extraction_result.dart';
 class AddEntryModal extends ConsumerStatefulWidget {
   /// "ingreso" o "gasto"
   final String type;
+  final Registro? record;
 
-  const AddEntryModal({super.key, required this.type});
+  const AddEntryModal({super.key, required this.type, this.record});
 
   @override
   ConsumerState<AddEntryModal> createState() => _AddEntryModalState();
@@ -35,6 +35,9 @@ class _AddEntryModalState extends ConsumerState<AddEntryModal>
   DateTime _selectedDate = DateTime.now();
   List<XFile> _selectedImages = [];
   bool _hasExtracted = false;
+  bool _editingBusy = false;
+  String? _editError;
+  String? _extractedId;
 
   bool get isIngreso => widget.type == 'ingreso';
   String get typeLabel => isIngreso ? 'Saldo' : 'Gasto';
@@ -42,6 +45,16 @@ class _AddEntryModalState extends ConsumerState<AddEntryModal>
   @override
   void initState() {
     super.initState();
+    final record = widget.record;
+    if (record != null) {
+      _montoCtrl.text = record.monto.toStringAsFixed(2);
+      _nombreCtrl.text = record.nombre;
+      _descripcionCtrl.text = record.descripcion;
+      _selectedDate = record.fecha.toUtc().subtract(const Duration(hours: 5));
+      _selectedDate = DateTime(_selectedDate.year, _selectedDate.month,
+          _selectedDate.day, _selectedDate.hour, _selectedDate.minute,
+          _selectedDate.second, _selectedDate.millisecond, _selectedDate.microsecond);
+    }
     _animCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 350),
@@ -66,44 +79,77 @@ class _AddEntryModalState extends ConsumerState<AddEntryModal>
   }
 
   Future<void> _pickImages() async {
-    final picker = ImagePicker();
-    final images = await picker.pickMultiImage();
-    if (images.isNotEmpty) {
-      setState(() {
-        _selectedImages = images;
-        _hasExtracted = false;
-      });
-      await _processImages();
+    try {
+      final picker = ImagePicker();
+      final images = await picker.pickMultiImage();
+      if (!mounted) return;
+
+      if (images.isNotEmpty) {
+        setState(() {
+          _selectedImages = images;
+          _hasExtracted = false;
+        });
+        await _processImages();
+      }
+    } catch (error) {
+      if (!mounted) return;
+      ref
+          .read(uploadYapeProvider.notifier)
+          .setError('No se pudo seleccionar la imagen: $error');
     }
   }
 
   Future<void> _processImages() async {
-    final base64Images = <String>[];
+    final uploadNotifier = ref.read(uploadYapeProvider.notifier);
+    uploadNotifier.prepareImages(_selectedImages.length);
 
-    for (final image in _selectedImages) {
-      final bytes = await image.readAsBytes();
-      final ext = image.name.split('.').last.toLowerCase();
-      final mime = ext == 'jpg' || ext == 'jpeg' ? 'image/jpeg' : 'image/png';
-      base64Images.add('data:$mime;base64,${base64Encode(bytes)}');
-    }
+    try {
+      final base64Images = <String>[];
+      for (var i = 0; i < _selectedImages.length; i++) {
+        final image = _selectedImages[i];
+        final bytes = await image.readAsBytes();
+        if (!mounted) return;
+        final ext = image.name.split('.').last.toLowerCase();
+        final mime = ext == 'jpg' || ext == 'jpeg' ? 'image/jpeg' : 'image/png';
+        base64Images.add('data:$mime;base64,${base64Encode(bytes)}');
+        uploadNotifier.updatePreparationProgress(i + 1, _selectedImages.length);
+      }
 
-    await ref.read(uploadYapeProvider.notifier).uploadImages(
-          base64Images: base64Images,
-          type: widget.type,
+      if (!mounted) return;
+      await uploadNotifier.uploadImages(
+        base64Images: base64Images,
+        type: widget.type,
+      );
+
+      if (!mounted) return;
+      final state = ref.read(uploadYapeProvider);
+      if (state.results != null && state.results!.isNotEmpty) {
+        final result = state.results!.firstWhere(
+          (result) => result.saved,
+          orElse: () => state.results!.first,
         );
-
-    final state = ref.read(uploadYapeProvider);
-    if (state.results != null && state.results!.isNotEmpty) {
-      _populateFromResult(state.results!.first);
-      setState(() => _hasExtracted = true);
+        if (result.saved) _populateFromResult(result);
+        setState(() => _hasExtracted = true);
+      }
+    } catch (error) {
+      if (mounted) uploadNotifier.setError(error.toString());
     }
   }
 
   void _populateFromResult(YapeExtractionResult result) {
-    _montoCtrl.text = result.monto > 0 ? result.monto.toStringAsFixed(2) : '';
-    _nombreCtrl.text = result.nombre;
-    _descripcionCtrl.text = result.descripcion;
-    _selectedDate = result.fecha;
+    setState(() {
+      _montoCtrl.text = result.monto > 0 ? result.monto.toStringAsFixed(2) : '';
+      _nombreCtrl.text = result.nombre;
+      _descripcionCtrl.text = result.descripcion;
+      _selectedDate = result.fecha.toUtc().subtract(const Duration(hours: 5));
+      _selectedDate = DateTime(_selectedDate.year, _selectedDate.month,
+          _selectedDate.day, _selectedDate.hour, _selectedDate.minute,
+          _selectedDate.second, _selectedDate.millisecond, _selectedDate.microsecond);
+      _extractedId = result.id;
+    });
+    ref.invalidate(balanceProvider);
+    ref.invalidate(ingresosHistoryProvider);
+    ref.invalidate(gastosHistoryProvider);
   }
 
   Future<void> _selectDateTime() async {
@@ -126,7 +172,7 @@ class _AddEntryModalState extends ConsumerState<AddEntryModal>
       selectableDayPredicate: null,
     );
     if (picked != null) {
-      setState(() => _selectedDate = picked);
+      if (mounted) setState(() => _selectedDate = picked);
     }
   }
 
@@ -136,27 +182,68 @@ class _AddEntryModalState extends ConsumerState<AddEntryModal>
     final monto = double.tryParse(_montoCtrl.text.replaceAll(',', '.'));
     if (monto == null) return;
 
+    if (widget.record != null || _extractedId != null) {
+      await _modify();
+      return;
+    }
     final success = await ref.read(manualEntryProvider.notifier).save(
           monto: monto,
-          nombre: _nombreCtrl.text.trim().isEmpty ? null : _nombreCtrl.text.trim(),
+          nombre:
+              _nombreCtrl.text.trim().isEmpty ? null : _nombreCtrl.text.trim(),
           descripcion: _descripcionCtrl.text.trim(),
-          fecha: _selectedDate,
+          fecha: _peruDate,
           type: widget.type,
         );
 
     if (success && mounted) {
+      final messenger = ScaffoldMessenger.of(context);
       // Refrescar datos
       ref.invalidate(balanceProvider);
       ref.invalidate(ingresosHistoryProvider);
       ref.invalidate(gastosHistoryProvider);
       ref.read(manualEntryProvider.notifier).reset();
       Navigator.of(context).pop();
-      _showSuccessSnack();
+      _showSuccessSnack(messenger);
     }
   }
 
-  void _showSuccessSnack() {
-    ScaffoldMessenger.of(context).showSnackBar(
+  DateTime get _peruDate => DateTime.utc(_selectedDate.year, _selectedDate.month,
+      _selectedDate.day, _selectedDate.hour + 5, _selectedDate.minute,
+      _selectedDate.second, _selectedDate.millisecond, _selectedDate.microsecond);
+
+  Future<void> _modify({bool delete = false}) async {
+    if (_editingBusy) return;
+    if (delete) {
+      final confirmed = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
+        title: const Text('¿Eliminar registro?'),
+        content: const Text('El registro se eliminará permanentemente.'),
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Eliminar'))],
+      ));
+      if (confirmed != true || !mounted) return;
+    }
+    setState(() { _editingBusy = true; _editError = null; });
+    try {
+      await ref.read(apiServiceProvider).modifyRecord(
+        id: widget.record?.id ?? _extractedId!, type: widget.type, delete: delete,
+        values: delete ? null : {'monto': double.parse(_montoCtrl.text.replaceAll(',', '.')),
+          'nombre': _nombreCtrl.text.trim(), 'descripcion': _descripcionCtrl.text.trim(),
+          'fecha': _peruDate.toIso8601String()},
+      );
+      if (!mounted) return;
+      ref.invalidate(balanceProvider);
+      ref.invalidate(ingresosHistoryProvider);
+      ref.invalidate(gastosHistoryProvider);
+      Navigator.pop(context);
+    } catch (_) {
+      if (mounted) setState(() => _editError = 'No se pudo guardar el cambio. Intenta nuevamente.');
+    } finally {
+      if (mounted) setState(() => _editingBusy = false);
+    }
+  }
+
+  void _showSuccessSnack(ScaffoldMessengerState messenger) {
+    messenger.showSnackBar(
       SnackBar(
         content: Text('$typeLabel agregado exitosamente'),
         backgroundColor: AppColors.successGreen,
@@ -166,8 +253,13 @@ class _AddEntryModalState extends ConsumerState<AddEntryModal>
     );
   }
 
-  void _close() {
-    _animCtrl.reverse().then((_) => Navigator.of(context).pop());
+  Future<void> _close() async {
+    try {
+      await _animCtrl.reverse();
+    } on TickerCanceled {
+      return;
+    }
+    if (mounted) Navigator.of(context).pop();
   }
 
   @override
@@ -221,7 +313,7 @@ class _AddEntryModalState extends ConsumerState<AddEntryModal>
                         ),
                       ),
                       GestureDetector(
-                        onTap: _close,
+                        onTap: _editingBusy ? null : _close,
                         child: Container(
                           width: 32,
                           height: 32,
@@ -242,7 +334,7 @@ class _AddEntryModalState extends ConsumerState<AddEntryModal>
 
                   // Título flotante
                   Text(
-                    'Agregar $typeLabel',
+                    '${widget.record == null ? 'Agregar' : 'Editar'} $typeLabel',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           color: AppColors.accentPurple,
                           fontWeight: FontWeight.bold,
@@ -251,7 +343,7 @@ class _AddEntryModalState extends ConsumerState<AddEntryModal>
                   const SizedBox(height: AppSpacing.lg),
 
                   // Área de upload Yape
-                  _buildUploadArea(uploadState),
+                  if (widget.record == null) _buildUploadArea(uploadState),
                   const SizedBox(height: AppSpacing.lg),
 
                   // Cards de resultados IA
@@ -272,7 +364,7 @@ class _AddEntryModalState extends ConsumerState<AddEntryModal>
                           keyboardType: const TextInputType.numberWithOptions(
                             decimal: true,
                           ),
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontFamily: 'SpaceGrotesk',
                             fontSize: 16,
                             color: AppColors.whiteText,
@@ -291,8 +383,9 @@ class _AddEntryModalState extends ConsumerState<AddEntryModal>
                             if (v == null || v.isEmpty) {
                               return 'El monto es requerido';
                             }
-                            if (double.tryParse(v.replaceAll(',', '.')) ==
-                                null) {
+                            if (double.tryParse(v.replaceAll(',', '.')) == null ||
+                                !double.parse(v.replaceAll(',', '.')).isFinite ||
+                                double.parse(v.replaceAll(',', '.')) < 0.01) {
                               return 'Ingresa un monto válido';
                             }
                             return null;
@@ -374,7 +467,7 @@ class _AddEntryModalState extends ConsumerState<AddEntryModal>
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton(
-                            onPressed: entryState.isSaving ? null : _submit,
+                            onPressed: entryState.isSaving || _editingBusy || uploadState.isUploading ? null : _submit,
                             style: ElevatedButton.styleFrom(
                               padding: const EdgeInsets.symmetric(
                                 vertical: AppSpacing.md + 2,
@@ -385,7 +478,7 @@ class _AddEntryModalState extends ConsumerState<AddEntryModal>
                                     BorderRadius.circular(AppRadius.button),
                               ),
                             ),
-                            child: entryState.isSaving
+                            child: entryState.isSaving || _editingBusy
                                 ? const SizedBox(
                                     height: 20,
                                     width: 20,
@@ -396,7 +489,7 @@ class _AddEntryModalState extends ConsumerState<AddEntryModal>
                                     ),
                                   )
                                 : Text(
-                                    'Guardar $typeLabel',
+                                    widget.record == null ? 'Guardar $typeLabel' : 'Guardar cambios',
                                     style: const TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w600,
@@ -405,6 +498,13 @@ class _AddEntryModalState extends ConsumerState<AddEntryModal>
                           ),
                         ),
 
+                        if (widget.record != null)
+                          TextButton.icon(
+                            onPressed: _editingBusy ? null : () => _modify(delete: true),
+                            icon: const Icon(Icons.delete_outline, color: AppColors.dangerRed),
+                            label: const Text('Eliminar registro', style: TextStyle(color: AppColors.dangerRed)),
+                          ),
+                        if (_editError != null) Text(_editError!, style: const TextStyle(color: AppColors.dangerRed)),
                         // Error de guardado
                         if (entryState.error != null) ...[
                           const SizedBox(height: AppSpacing.sm),
@@ -441,26 +541,41 @@ class _AddEntryModalState extends ConsumerState<AddEntryModal>
   }
 
   Widget _buildUploadArea(UploadYapeState uploadState) {
-    return GestureDetector(
-      onTap: uploadState.isUploading ? null : _pickImages,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
-        decoration: BoxDecoration(
-          color: AppColors.deepPurpleBg,
-          borderRadius: BorderRadius.circular(AppRadius.card),
-          border: Border.all(
-            color: uploadState.isUploading
-                ? AppColors.accentPurple.withOpacity(0.5)
-                : AppColors.mutedPurple.withOpacity(0.4),
-            width: 1.5,
-            style: BorderStyle.solid,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        GestureDetector(
+          onTap: uploadState.isUploading ? null : _pickImages,
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
+            decoration: BoxDecoration(
+              color: AppColors.deepPurpleBg,
+              borderRadius: BorderRadius.circular(AppRadius.card),
+              border: Border.all(
+                color: uploadState.isUploading
+                    ? AppColors.accentPurple.withOpacity(0.5)
+                    : AppColors.mutedPurple.withOpacity(0.4),
+                width: 1.5,
+                style: BorderStyle.solid,
+              ),
+            ),
+            child: uploadState.isUploading
+                ? _buildUploadProgress(uploadState)
+                : _buildUploadIdle(),
           ),
         ),
-        child: uploadState.isUploading
-            ? _buildUploadProgress(uploadState)
-            : _buildUploadIdle(),
-      ),
+        if (uploadState.error != null) ...[
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            uploadState.error!,
+            style: const TextStyle(
+              color: AppColors.dangerRed,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ],
     );
   }
 
@@ -504,13 +619,29 @@ class _AddEntryModalState extends ConsumerState<AddEntryModal>
   Widget _buildUploadProgress(UploadYapeState uploadState) {
     return Column(
       children: [
-        const Text(
-          'Extrayendo datos con IA...',
-          style: TextStyle(
-            color: AppColors.accentPurple,
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: AppColors.accentPurple,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Flexible(
+              child: Text(
+                uploadState.status ?? 'Procesando capturas...',
+                style: const TextStyle(
+                  color: AppColors.accentPurple,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: AppSpacing.md),
         ...List.generate(
@@ -577,19 +708,17 @@ class _AddEntryModalState extends ConsumerState<AddEntryModal>
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: results.length,
-            separatorBuilder: (_, __) =>
-                const SizedBox(width: AppSpacing.sm),
+            separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.sm),
             itemBuilder: (context, i) {
               final result = results[i];
               return GestureDetector(
-                onTap: () => _populateFromResult(result),
+                onTap: result.saved ? () => _populateFromResult(result) : null,
                 child: Container(
                   width: 180,
                   padding: const EdgeInsets.all(AppSpacing.md),
                   decoration: BoxDecoration(
                     color: AppColors.deepPurpleBg,
-                    borderRadius:
-                        BorderRadius.circular(AppRadius.captureCard),
+                    borderRadius: BorderRadius.circular(AppRadius.captureCard),
                     border: Border.all(
                       color: result.saved
                           ? AppColors.successGreen.withOpacity(0.3)
@@ -628,14 +757,17 @@ class _AddEntryModalState extends ConsumerState<AddEntryModal>
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                      const Spacer(),
                       Text(
-                        result.descripcion,
-                        style: const TextStyle(
-                          color: AppColors.mutedText,
+                        result.saved
+                            ? result.descripcion
+                            : result.error ?? result.descripcion,
+                        style: TextStyle(
+                          color: result.saved
+                              ? AppColors.mutedText
+                              : AppColors.dangerRed,
                           fontSize: 11,
                         ),
-                        maxLines: 1,
+                        maxLines: 3,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ],
@@ -652,12 +784,15 @@ class _AddEntryModalState extends ConsumerState<AddEntryModal>
 }
 
 /// Muestra el modal de AddEntryModal como bottom sheet.
-void showAddEntryModal(BuildContext context, {required String type}) {
+void showAddEntryModal(BuildContext context, {required String type, Registro? record}) {
+  if (!context.mounted) return;
+
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
+    useSafeArea: true,
     backgroundColor: Colors.transparent,
     barrierColor: Colors.black.withOpacity(0.6),
-    builder: (_) => AddEntryModal(type: type),
+    builder: (sheetContext) => AddEntryModal(type: type, record: record),
   );
 }

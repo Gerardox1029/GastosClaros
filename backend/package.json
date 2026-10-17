@@ -10,13 +10,17 @@
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",
-    "mongoose": "^8.8.0",
+    "@techstark/opencv-js": "^5.0.0-release.1",
+    "@tesseract.js-data/spa": "^1.0.0",
+    "busboy": "^1.6.0",
     "dotenv": "^16.4.5",
-    "busboy": "^1.6.0"
+    "mongoose": "^8.8.0",
+    "sharp": "^0.34.5",
+    "tesseract.js": "^7.0.0"
   },
   "devDependencies": {
-    "netlify-cli": "^17.37.0",
-    "jest": "^29.7.0"
+    "jest": "^29.7.0",
+    "netlify-cli": "^17.37.0"
   },
   "engines": {
     "node": ">=18.0.0"

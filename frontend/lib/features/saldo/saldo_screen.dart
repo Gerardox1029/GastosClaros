@@ -6,6 +6,7 @@ import 'package:gastos_claros/shared/widgets/add_entry_modal.dart';
 import 'package:gastos_claros/shared/widgets/currency_widgets.dart';
 import 'package:gastos_claros/shared/widgets/loading_spinner.dart';
 import 'package:gastos_claros/shared/models/registro.dart';
+import 'package:gastos_claros/shared/models/balance_response.dart';
 
 /// Sección Saldo — muestra saldo actual, filtro de tiempo,
 /// historial de ingresos y botón para agregar.
@@ -117,7 +118,7 @@ class _SaldoScreenState extends ConsumerState<SaldoScreen>
               ),
               data: (registros) => registros.isEmpty
                   ? SliverToBoxAdapter(
-                      child: _buildEmptyState(context, 'Sin ingresos aún'),
+                      child: _buildEmptyState(context, 'Aún no hay registros'),
                     )
                   : SliverList(
                       delegate: SliverChildBuilderDelegate(
@@ -152,7 +153,7 @@ class _SaldoScreenState extends ConsumerState<SaldoScreen>
 
   Widget _buildBalancePanel(
     BuildContext context,
-    AsyncValue balanceAsync,
+    AsyncValue<BalanceResponse> balanceAsync,
     String filter,
     WidgetRef ref,
   ) {
@@ -196,14 +197,23 @@ class _SaldoScreenState extends ConsumerState<SaldoScreen>
           // Monto grande
           balanceAsync.when(
             loading: () => const LoadingSpinner(size: 28, strokeWidth: 2.5),
-            error: (e, _) => const Text(
-              'S/. —',
-              style: TextStyle(
-                fontFamily: 'SpaceGrotesk',
-                fontSize: 42,
-                fontWeight: FontWeight.bold,
-                color: AppColors.mutedText,
-              ),
+            error: (_, __) => Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'S/. —',
+                  style: TextStyle(
+                    fontFamily: 'SpaceGrotesk',
+                    fontSize: 42,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.mutedText,
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => ref.invalidate(balanceProvider),
+                  child: const Text('No se pudo cargar el saldo. Reintentar'),
+                ),
+              ],
             ),
             data: (balance) => SaldoDisplay(saldo: balance.saldo),
           ),
@@ -354,8 +364,9 @@ class _SaldoScreenState extends ConsumerState<SaldoScreen>
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: (isIngreso ? AppColors.successGreen : AppColors.dangerRed)
-                    .withOpacity(0.12),
+                color:
+                    (isIngreso ? AppColors.successGreen : AppColors.dangerRed)
+                        .withOpacity(0.12),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(
@@ -399,6 +410,11 @@ class _SaldoScreenState extends ConsumerState<SaldoScreen>
               monto: registro.monto,
               isIngreso: isIngreso,
               showSign: true,
+            ),
+            IconButton(
+              tooltip: 'Editar registro',
+              icon: const Icon(Icons.edit_outlined, color: AppColors.accentPurple, size: 20),
+              onPressed: registro.id == null ? null : () => showAddEntryModal(context, type: 'ingreso', record: registro),
             ),
           ],
         ),

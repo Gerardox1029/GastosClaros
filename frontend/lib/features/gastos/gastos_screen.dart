@@ -6,6 +6,7 @@ import 'package:gastos_claros/shared/widgets/add_entry_modal.dart';
 import 'package:gastos_claros/shared/widgets/currency_widgets.dart';
 import 'package:gastos_claros/shared/widgets/loading_spinner.dart';
 import 'package:gastos_claros/shared/models/registro.dart';
+import 'package:gastos_claros/shared/models/balance_response.dart';
 
 /// Sección Gastos — muestra resumen de gastos y historial reciente.
 class GastosScreen extends ConsumerWidget {
@@ -116,8 +117,8 @@ class GastosScreen extends ConsumerWidget {
                   onTap: () => showAddEntryModal(context, type: 'gasto'),
                   child: Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                        vertical: AppSpacing.md + 2),
+                    padding:
+                        const EdgeInsets.symmetric(vertical: AppSpacing.md + 2),
                     decoration: BoxDecoration(
                       color: Colors.transparent,
                       borderRadius: BorderRadius.circular(AppRadius.button),
@@ -157,7 +158,7 @@ class GastosScreen extends ConsumerWidget {
 
   Widget _buildGastosPanel(
     BuildContext context,
-    AsyncValue balanceAsync,
+    AsyncValue<BalanceResponse> balanceAsync,
     String filter,
     WidgetRef ref,
   ) {
@@ -198,14 +199,23 @@ class GastosScreen extends ConsumerWidget {
           const SizedBox(height: AppSpacing.sm),
           balanceAsync.when(
             loading: () => const LoadingSpinner(size: 28, strokeWidth: 2.5),
-            error: (_, __) => const Text(
-              'S/. —',
-              style: TextStyle(
-                fontFamily: 'SpaceGrotesk',
-                fontSize: 42,
-                fontWeight: FontWeight.bold,
-                color: AppColors.mutedText,
-              ),
+            error: (_, __) => Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'S/. —',
+                  style: TextStyle(
+                    fontFamily: 'SpaceGrotesk',
+                    fontSize: 42,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.mutedText,
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => ref.invalidate(balanceProvider),
+                  child: const Text('No se pudo cargar el saldo. Reintentar'),
+                ),
+              ],
             ),
             data: (balance) => Text(
               formatMonto(balance.totalGastos),
@@ -230,8 +240,7 @@ class GastosScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildGastoItem(
-      BuildContext context, Registro registro, int index) {
+  Widget _buildGastoItem(BuildContext context, Registro registro, int index) {
     return TweenAnimationBuilder<double>(
       duration: Duration(milliseconds: 200 + (index * 80)),
       tween: Tween(begin: 0.0, end: 1.0),
@@ -301,6 +310,11 @@ class GastosScreen extends ConsumerWidget {
               isIngreso: false,
               showSign: true,
             ),
+            IconButton(
+              tooltip: 'Editar registro',
+              icon: const Icon(Icons.edit_outlined, color: AppColors.accentPurple, size: 20),
+              onPressed: registro.id == null ? null : () => showAddEntryModal(context, type: 'gasto', record: registro),
+            ),
           ],
         ),
       ),
@@ -338,7 +352,7 @@ class GastosScreen extends ConsumerWidget {
           Icon(Icons.receipt_long_rounded,
               color: AppColors.mutedPurple.withOpacity(0.4), size: 48),
           const SizedBox(height: AppSpacing.sm),
-          Text('Sin gastos registrados',
+          Text('Aún no hay registros',
               style: Theme.of(context)
                   .textTheme
                   .bodySmall

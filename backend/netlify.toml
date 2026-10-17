@@ -4,6 +4,7 @@
 
 [functions]
   node_bundler = "esbuild"
+  external_node_modules = ["@techstark/opencv-js", "tesseract.js", "tesseract.js-core", "@tesseract.js-data/spa", "sharp"]
 
 [dev]
   port = 8888

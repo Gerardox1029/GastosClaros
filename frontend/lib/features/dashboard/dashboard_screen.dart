@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:gastos_claros/shared/widgets/financial_chat.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gastos_claros/core/theme.dart';
@@ -63,24 +64,23 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
   }
 
   /// Muestra bottom sheet con opciones: Gasto o Saldo.
-  void _showAddOptions() {
-    showModalBottomSheet(
+  Future<void> _showAddOptions() async {
+    final type = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: Colors.transparent,
       barrierColor: Colors.black.withOpacity(0.6),
-      builder: (context) => _AddOptionsSheet(
+      builder: (sheetContext) => _AddOptionsSheet(
         onSelectType: (type) {
-          Navigator.of(context).pop();
-          // Navegar al tab correcto
-          final tabIndex = type == 'ingreso' ? 0 : 1;
-          ref.read(selectedTabProvider.notifier).state = tabIndex;
-          // Abrir modal
-          Future.delayed(const Duration(milliseconds: 150), () {
-            if (mounted) showAddEntryModal(context, type: type);
-          });
+          Navigator.of(sheetContext).pop(type);
         },
       ),
     );
+
+    if (!mounted || type == null) return;
+
+    ref.read(selectedTabProvider.notifier).state = type == 'ingreso' ? 0 : 1;
+    await Future<void>.delayed(const Duration(milliseconds: 150));
+    if (mounted) showAddEntryModal(context, type: type);
   }
 
   @override
@@ -89,10 +89,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
 
     return Scaffold(
       backgroundColor: AppColors.deepPurpleBg,
-      body: IndexedStack(
-        index: selectedTab,
-        children: _screens,
-      ),
+      body: Stack(children: [
+        IndexedStack(index: selectedTab, children: _screens),
+        Positioned(right: 16, bottom: 24, child: FloatingActionButton(
+          heroTag: 'financial-assistant', tooltip: 'Asistente financiero',
+          backgroundColor: AppColors.accentPurple,
+          onPressed: () => showModalBottomSheet<void>(
+            context: context, isScrollControlled: true, useSafeArea: true,
+            backgroundColor: Colors.transparent,
+            builder: (_) => const FinancialChat()),
+          child: const Icon(Icons.chat_bubble_outline_rounded),
+        )),
+      ]),
       bottomNavigationBar: _buildBottomNav(selectedTab),
       floatingActionButton: _buildFab(),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
@@ -154,7 +162,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.lg,
-          vertical: AppSpacing.sm,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -164,17 +171,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
               child: Icon(
                 icon,
                 key: ValueKey(isSelected),
-                color: isSelected ? AppColors.accentPurple : AppColors.mutedPurple,
-                size: 24,
+                color:
+                    isSelected ? AppColors.accentPurple : AppColors.mutedPurple,
+                size: 22,
               ),
             ),
-            const SizedBox(height: 2),
+            const SizedBox(height: 1),
             Text(
               label,
               style: TextStyle(
-                fontSize: 11,
+                fontSize: 10,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                color: isSelected ? AppColors.accentPurple : AppColors.mutedPurple,
+                color:
+                    isSelected ? AppColors.accentPurple : AppColors.mutedPurple,
               ),
             ),
           ],
@@ -185,6 +194,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
 
   Widget _buildFab() {
     return GestureDetector(
+      key: const ValueKey('dashboard-add-fab'),
       onTap: _onFabTap,
       onTapDown: _onFabTapDown,
       onTapUp: _onFabTapUp,
