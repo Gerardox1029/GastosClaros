@@ -92,7 +92,7 @@ class _SaldoScreenState extends ConsumerState<SaldoScreen>
                   horizontal: AppSpacing.lg,
                 ),
                 child: Text(
-                  'Últimos ingresos',
+                  'Historial de ingresos',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         color: AppColors.mutedText,
                         fontSize: 13,
@@ -131,6 +131,23 @@ class _SaldoScreenState extends ConsumerState<SaldoScreen>
                         childCount: registros.length,
                       ),
                     ),
+            ),
+
+            historyAsync.maybeWhen(
+              data: (registros) =>
+                  registros.length >= ref.watch(ingresosHistoryLimitProvider)
+                      ? SliverToBoxAdapter(
+                          child: Center(
+                            child: TextButton(
+                              onPressed: () => ref
+                                  .read(ingresosHistoryLimitProvider.notifier)
+                                  .state += 5,
+                              child: const Text('Ver más ingresos'),
+                            ),
+                          ),
+                        )
+                      : const SliverToBoxAdapter(child: SizedBox.shrink()),
+              orElse: () => const SliverToBoxAdapter(child: SizedBox.shrink()),
             ),
 
             // Botón Agregar Saldo (dashed)

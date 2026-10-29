@@ -72,12 +72,19 @@ async function createReceiptReader() {
     async read(image) {
       const processed = await preprocessImages(image);
       let lastError;
+      let best;
+      const score = (fields) => Number(Boolean(fields.nombre)) + Number(Boolean(fields.fecha)) + Number(Boolean(fields.descripcion));
       // PSM 3 handles mixed font sizes; sparse text is a fallback for other layouts.
-      for (const [mode, input] of [['3', processed.binary], ['11', processed.grayscale]]) {
+      for (const [mode, input] of [['3', processed.binary], ['11', processed.binary], ['11', processed.grayscale]]) {
         await worker.setParameters({ tessedit_pageseg_mode: mode, user_defined_dpi: '150' });
         const { data } = await worker.recognize(input);
-        try { return parseYapeText(data.text); } catch (error) { lastError = error; }
+        try {
+          const fields = parseYapeText(data.text);
+          if (!best || score(fields) > score(best)) best = fields;
+          if (score(best) === 3) break;
+        } catch (error) { lastError = error; }
       }
+      if (best) return best;
       throw lastError;
     },
     close: () => worker.terminate(),

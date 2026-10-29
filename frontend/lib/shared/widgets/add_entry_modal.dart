@@ -139,7 +139,9 @@ class _AddEntryModalState extends ConsumerState<AddEntryModal>
       _montoCtrl.text = result.monto > 0 ? result.monto.toStringAsFixed(2) : '';
       _nombreCtrl.text = result.nombre;
       _descripcionCtrl.text = result.descripcion;
-      _selectedDate = result.fecha.toUtc().subtract(const Duration(hours: 5));
+      if (result.fecha != null) {
+        _selectedDate = result.fecha!.toUtc().subtract(const Duration(hours: 5));
+      }
       _selectedDate = DateTime(_selectedDate.year, _selectedDate.month,
           _selectedDate.day, _selectedDate.hour, _selectedDate.minute,
           _selectedDate.second, _selectedDate.millisecond, _selectedDate.microsecond);
@@ -371,6 +373,9 @@ class _AddEntryModalState extends ConsumerState<AddEntryModal>
                     _buildExtractionResults(uploadState.results!),
 
                   // Formulario manual
+                  if (_activeCapture != null && _activeCapture!.fecha == null)
+                    const Text('No se reconoció la fecha. Revisa la fecha del formulario antes de guardar.',
+                        style: TextStyle(color: AppColors.mutedText)),
                   Form(
                     key: _formKey,
                     child: Column(

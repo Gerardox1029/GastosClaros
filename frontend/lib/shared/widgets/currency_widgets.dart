@@ -6,10 +6,8 @@ import 'package:gastos_claros/core/theme.dart';
 String formatMonto(double monto, {bool showSign = false}) {
   final formatter = NumberFormat('#,##0.00', 'es_PE');
   final formatted = formatter.format(monto.abs());
-  if (showSign) {
-    return monto >= 0 ? '+S/. $formatted' : '-S/. $formatted';
-  }
-  return 'S/. $formatted';
+  if (monto < 0) return '-S/. $formatted';
+  return showSign ? '+S/. $formatted' : 'S/. $formatted';
 }
 
 /// Formatea una fecha en formato dd/MM/yyyy.
@@ -42,7 +40,7 @@ class MontoText extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Text(
-      formatMonto(monto, showSign: showSign),
+      formatMonto(isIngreso ? monto : -monto, showSign: showSign),
       style: TextStyle(
         fontFamily: 'SpaceGrotesk',
         fontSize: fontSize,
@@ -62,7 +60,7 @@ class SaldoDisplay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Text(
-      formatMonto(saldo),
+      formatMonto(saldo, showSign: saldo < 0),
       style: const TextStyle(
         fontFamily: 'SpaceGrotesk',
         fontSize: 42,

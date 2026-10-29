@@ -38,7 +38,7 @@ exports.handler = async (event) => {
 
     // Obtener límite
     const limit = parseInt(event.queryStringParameters?.limit) || 3;
-    const sanitizedLimit = Math.min(Math.max(limit, 1), 50); // Limitar entre 1 y 50
+    const sanitizedLimit = Math.min(Math.max(limit, 1), 1000);
 
     // Seleccionar modelo
     const Model = type === 'ingresos' ? Ingreso : Gasto;
@@ -46,8 +46,11 @@ exports.handler = async (event) => {
     // Consultar documentos ordenados por fecha descendente
     const documents = await Model.find()
       .sort({ fecha: -1 })
-      .limit(sanitizedLimit)
+      .limit(sanitizedLimit + 1)
       .lean();
+
+    const hasMore = documents.length > sanitizedLimit;
+    if (hasMore) documents.pop();
 
     // Descifrar campos sensibles
     const decryptedDocs = documents.map((doc) => decryptDocument(doc));
@@ -58,7 +61,7 @@ exports.handler = async (event) => {
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*',
       },
-      body: JSON.stringify({ data: decryptedDocs }),
+      body: JSON.stringify({ data: decryptedDocs, has_more: hasMore }),
     };
   } catch (error) {
     console.error('[history] Error:', error.message);

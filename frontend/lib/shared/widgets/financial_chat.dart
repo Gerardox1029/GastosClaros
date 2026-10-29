@@ -1,7 +1,12 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' show ClientException;
 import 'package:gastos_claros/core/theme.dart';
 import 'package:gastos_claros/shared/providers/app_providers.dart';
+import 'package:gastos_claros/shared/services/api_service.dart';
 
 final _messagesProvider = StateProvider<List<Map<String, String>>>((ref) => []);
 final _periodProvider = StateProvider<String>((ref) => '1M');
@@ -17,6 +22,7 @@ class _FinancialChatState extends ConsumerState<FinancialChat> {
   final _scroll = ScrollController();
   bool _busy = false;
   String? _error;
+  String? _loadingMessage;
 
   @override
   void dispose() {
@@ -50,28 +56,81 @@ class _FinancialChatState extends ConsumerState<FinancialChat> {
     _input.clear();
     _scrollDown();
     try {
-      final answer = await ref.read(apiServiceProvider).askAssistant(
-          message: text,
-          period: period,
-          history: history.length > 20
-              ? history.sublist(history.length - 20)
-              : history);
+      String? answer;
+      Object? lastError;
+      for (var attempt = 0; attempt < 4; attempt++) {
+        if (!mounted) return;
+        setState(() => _loadingMessage = switch (attempt) {
+              0 => 'Analizando tus ingresos y gastos...',
+              1 => 'La API tardó en responder. Reintentando en 10 segundos...',
+              2 => 'Haciendo cálculos con tus movimientos...',
+              _ =>
+                'Gemini sigue sin responder. Último intento en 10 segundos...',
+            });
+        if (attempt > 0) {
+          await Future.delayed(const Duration(seconds: 10));
+          if (!mounted) return;
+          setState(() => _loadingMessage = 'Consultando de nuevo a Gemini...');
+        }
+        try {
+          answer = await ref.read(apiServiceProvider).askAssistant(
+              message: text,
+              period: period,
+              history: history.length > 20
+                  ? history.sublist(history.length - 20)
+                  : history);
+          break;
+        } catch (error) {
+          lastError = error;
+          if (!_isTransient(error)) break;
+        }
+      }
+      if (answer == null) throw lastError ?? Exception('Error desconocido');
       if (!mounted) return;
       ref.read(_messagesProvider.notifier).state = [
         ...ref.read(_messagesProvider),
         {'role': 'model', 'text': answer}
       ];
+      setState(() => _loadingMessage = null);
       _scrollDown();
     } catch (error) {
       if (mounted) {
         ref.read(_messagesProvider.notifier).state = history;
         _input.text = text;
-        setState(() =>
-            _error = 'No se pudo obtener una respuesta. Intenta nuevamente.');
+        final message = error.toString();
+        setState(() {
+          _error = error is ApiException
+              ? '$message${_isTransient(error) ? ' (después de varios intentos).' : ''}'
+              : error is ClientException || error is TimeoutException
+                  ? 'Sin conexión con el servidor de GastosClaros. Verifica internet e inténtalo de nuevo.'
+                  : 'Falló el servidor de GastosClaros. Intenta nuevamente más tarde.';
+          _loadingMessage = null;
+        });
       }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  bool _isTransient(Object error) {
+    if (error is ClientException || error is TimeoutException) return true;
+    if (error is ApiException) {
+      if ((error.statusCode == 503 || error.statusCode == 502) &&
+          error.body != null) {
+        try {
+          final code =
+              (jsonDecode(error.body!) as Map<String, dynamic>)['code'];
+          return code == 'gemini_unavailable' ||
+              code == 'gemini_rate_limited' ||
+              code == 'financial_data_unavailable' ||
+              code == 'gemini_error';
+        } catch (_) {
+          return false;
+        }
+      }
+      return error.statusCode == 503;
+    }
+    return false;
   }
 
   @override
@@ -156,12 +215,18 @@ class _FinancialChatState extends ConsumerState<FinancialChat> {
                               ));
                         })),
             if (_busy)
-              const Padding(
+              Padding(
                   padding: EdgeInsets.all(8),
-                  child: SizedBox(
-                      height: 22,
-                      width: 22,
-                      child: CircularProgressIndicator(strokeWidth: 2))),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    const SizedBox(
+                        height: 22,
+                        width: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2)),
+                    const SizedBox(width: 10),
+                    Flexible(
+                        child:
+                            Text(_loadingMessage ?? 'Preparando consulta...')),
+                  ])),
             if (_error != null)
               Text(_error!, style: const TextStyle(color: AppColors.dangerRed)),
             Row(children: [

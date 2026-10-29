@@ -68,7 +68,7 @@ class GastosScreen extends ConsumerWidget {
                   horizontal: AppSpacing.lg,
                 ),
                 child: Text(
-                  'Últimos gastos',
+                  'Historial de gastos',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         color: AppColors.mutedText,
                         fontSize: 13,
@@ -102,6 +102,23 @@ class GastosScreen extends ConsumerWidget {
                         childCount: registros.length,
                       ),
                     ),
+            ),
+
+            historyAsync.maybeWhen(
+              data: (registros) =>
+                  registros.length >= ref.watch(gastosHistoryLimitProvider)
+                      ? SliverToBoxAdapter(
+                          child: Center(
+                            child: TextButton(
+                              onPressed: () => ref
+                                  .read(gastosHistoryLimitProvider.notifier)
+                                  .state += 5,
+                              child: const Text('Ver más gastos'),
+                            ),
+                          ),
+                        )
+                      : const SliverToBoxAdapter(child: SizedBox.shrink()),
+              orElse: () => const SliverToBoxAdapter(child: SizedBox.shrink()),
             ),
 
             // Botón agregar gasto
@@ -218,7 +235,7 @@ class GastosScreen extends ConsumerWidget {
               ],
             ),
             data: (balance) => Text(
-              formatMonto(balance.totalGastos),
+              formatMonto(-balance.totalGastos),
               style: const TextStyle(
                 fontFamily: 'SpaceGrotesk',
                 fontSize: 42,

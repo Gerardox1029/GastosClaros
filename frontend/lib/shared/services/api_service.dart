@@ -214,15 +214,24 @@ class ApiService {
     }
   }
 
-  Future<String> askAssistant({required String message, required String period,
-    required List<Map<String, String>> history}) async {
-    final response = await _client.post(
-      Uri.parse('${ApiConfig.baseUrl}/financial-assistant'), headers: _jsonHeaders,
-      body: jsonEncode({'message': message, 'period': period, 'history': history}),
-    ).timeout(ApiConfig.uploadTimeout);
+  Future<String> askAssistant(
+      {required String message,
+      required String period,
+      required List<Map<String, String>> history}) async {
+    final response = await _client
+        .post(
+          Uri.parse('${ApiConfig.baseUrl}/financial-assistant'),
+          headers: _jsonHeaders,
+          body: jsonEncode(
+              {'message': message, 'period': period, 'history': history}),
+        )
+        .timeout(ApiConfig.uploadTimeout);
     final data = jsonDecode(response.body) as Map<String, dynamic>;
     if (response.statusCode != 200) {
-      throw ApiException(data['error'] as String? ?? 'No se pudo consultar al asistente.');
+      throw ApiException(
+          data['error'] as String? ?? 'No se pudo consultar al asistente.',
+          statusCode: response.statusCode,
+          body: response.body);
     }
     return data['answer'] as String;
   }

@@ -3,7 +3,7 @@ class YapeExtractionResult {
   final String nombre;
   final double monto;
   final String descripcion;
-  final DateTime fecha;
+  final DateTime? fecha;
   final bool saved;
   final bool extracted;
   final String? receiptKey;
@@ -30,7 +30,7 @@ class YapeExtractionResult {
       nombre: json['nombre'] as String? ?? '',
       monto: (json['monto'] as num).toDouble(),
       descripcion: json['descripcion'] as String? ?? '',
-      fecha: DateTime.parse(json['fecha'] as String),
+      fecha: DateTime.tryParse(json['fecha'] as String? ?? ''),
       saved: json['saved'] as bool? ?? false,
       extracted: json['extracted'] as bool? ?? false,
       receiptKey: json['receiptKey'] as String?,

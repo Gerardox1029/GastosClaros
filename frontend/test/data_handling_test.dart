@@ -5,10 +5,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gastos_claros/shared/models/balance_response.dart';
 import 'package:gastos_claros/shared/providers/app_providers.dart';
 import 'package:gastos_claros/shared/services/api_service.dart';
+import 'package:gastos_claros/shared/widgets/currency_widgets.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
 void main() {
+  test('negative balances and expense amounts display a minus sign', () {
+    expect(formatMonto(-7.5), '-S/. 7,50');
+    expect(formatMonto(-7.5, showSign: true), '-S/. 7,50');
+    expect(formatMonto(7.5, showSign: true), '+S/. 7,50');
+  });
+
   group('BalanceResponse.fromJson', () {
     test('parses the production zero-balance response', () {
       final balance = BalanceResponse.fromJson({

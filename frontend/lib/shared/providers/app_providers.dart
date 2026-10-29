@@ -33,15 +33,20 @@ final balanceProvider = FutureProvider<BalanceResponse>((ref) async {
 // ──────────────────────────────────────────────
 
 /// Provider del historial de ingresos.
+final ingresosHistoryLimitProvider = StateProvider<int>((ref) => 3);
+final gastosHistoryLimitProvider = StateProvider<int>((ref) => 3);
+
 final ingresosHistoryProvider = FutureProvider<List<Registro>>((ref) async {
   final api = ref.read(apiServiceProvider);
-  return api.getHistory(type: 'ingresos', limit: 3);
+  final limit = ref.watch(ingresosHistoryLimitProvider);
+  return api.getHistory(type: 'ingresos', limit: limit);
 });
 
 /// Provider del historial de gastos.
 final gastosHistoryProvider = FutureProvider<List<Registro>>((ref) async {
   final api = ref.read(apiServiceProvider);
-  return api.getHistory(type: 'gastos', limit: 3);
+  final limit = ref.watch(gastosHistoryLimitProvider);
+  return api.getHistory(type: 'gastos', limit: limit);
 });
 
 // ──────────────────────────────────────────────

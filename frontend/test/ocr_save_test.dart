@@ -20,6 +20,25 @@ class CompletedUpload extends UploadYapeNotifier {
 
 void main() {
   setUpAll(() => initializeDateFormatting('es_PE'));
+  testWidgets('OCR without date or description still fills amount and name', (tester) async {
+    final api = ApiService(client: MockClient((_) async => http.Response('{"data":[]}', 200)));
+    final upload = CompletedUpload(api);
+    await tester.pumpWidget(ProviderScope(overrides: [
+      apiServiceProvider.overrideWith((ref) => api),
+      uploadYapeProvider.overrideWith((ref) => upload),
+    ], child: const MaterialApp(home: Scaffold(body: AddEntryModal(type: 'ingreso')))));
+    await tester.pumpAndSettle();
+    upload.complete([YapeExtractionResult.fromJson({
+      'nombre': 'Mayra Ram*', 'monto': 70, 'descripcion': '',
+      'fecha': null, 'extracted': true, 'saved': false, 'captureIndex': 1,
+    })]);
+    await tester.pumpAndSettle();
+    expect(find.text('70.00'), findsOneWidget);
+    expect(find.text('Mayra Ram*'), findsNWidgets(2));
+    expect(find.text('No se reconoció la fecha. Revisa la fecha del formulario antes de guardar.'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('OCR fills the form without saving and double tap sends one save', (tester) async {
     final pending = Completer<http.Response>();
     final requests = <http.Request>[];
