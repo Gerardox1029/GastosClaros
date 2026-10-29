@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 /// Configuración de la API backend (Netlify Functions).
 class ApiConfig {
   ApiConfig._();
@@ -7,13 +9,10 @@ class ApiConfig {
   /// URL de producción (Netlify). Actualizar con la URL real del deploy.
   static const String _prodUrl = 'https://gastosclaross.netlify.app/api';
 
-  /// URL de desarrollo local (netlify dev).
-  static const String _devUrl = 'http://localhost:8888/api';
-
-  /// URL activa — se selecciona con el dart-define en build.
+  /// Web usa el mismo origen; la app nativa conserva la URL remota.
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: _prodUrl, // producción por defecto en el APK
+    defaultValue: kIsWeb ? '/api' : _prodUrl,
   );
 
   // ─── Endpoints ─────────────────────────────────────────────────────────────

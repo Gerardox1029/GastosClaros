@@ -4,7 +4,7 @@
   "description": "Backend serverless para GastosClaros — Netlify Functions + MongoDB + Gemini API",
   "main": "index.js",
   "scripts": {
-    "dev": "netlify dev",
+    "dev": "cd .. && netlify dev",
     "build": "echo 'No build step required for serverless functions'",
     "test": "jest --passWithNoTests"
   },
@@ -16,7 +16,8 @@
     "dotenv": "^16.4.5",
     "mongoose": "^8.8.0",
     "sharp": "^0.34.5",
-    "tesseract.js": "^7.0.0"
+    "tesseract.js": "^7.0.0",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "jest": "^29.7.0",

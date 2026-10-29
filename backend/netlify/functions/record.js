@@ -3,8 +3,11 @@ const Ingreso = require('../../models/Ingreso');
 const Gasto = require('../../models/Gasto');
 const { encryptDocument } = require('../../lib/encryption');
 const { reply } = require('../../lib/http');
+const { authFailure } = require('../../lib/auth');
 
 exports.handler = async (event) => {
+  const denied = authFailure(event);
+  if (denied) return denied;
   if (event.httpMethod === 'OPTIONS') return reply(200, {});
   if (!['PATCH', 'DELETE'].includes(event.httpMethod)) return reply(405, { error: 'Método no permitido.' });
   let body;

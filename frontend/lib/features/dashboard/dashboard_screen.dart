@@ -30,6 +30,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
   @override
   void initState() {
     super.initState();
+    if (Uri.base.queryParameters['tab'] == 'gastos') {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) ref.read(selectedTabProvider.notifier).state = 1;
+      });
+    }
     _fabCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 150),

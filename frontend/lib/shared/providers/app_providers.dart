@@ -189,11 +189,13 @@ final uploadYapeProvider =
 class ManualEntryState {
   final bool isSaving;
   final String? savedId;
+  final bool created;
   final String? error;
 
   const ManualEntryState({
     this.isSaving = false,
     this.savedId,
+    this.created = false,
     this.error,
   });
 }
@@ -215,7 +217,7 @@ class ManualEntryNotifier extends StateNotifier<ManualEntryState> {
     state = const ManualEntryState(isSaving: true);
 
     try {
-      final id = await _api.saveManualEntry(
+      final result = await _api.saveManualEntry(
         monto: monto,
         nombre: nombre,
         descripcion: descripcion,
@@ -224,7 +226,8 @@ class ManualEntryNotifier extends StateNotifier<ManualEntryState> {
         receiptKey: receiptKey,
       );
 
-      state = ManualEntryState(isSaving: false, savedId: id);
+      state = ManualEntryState(isSaving: false, savedId: result.id,
+        created: result.created);
       return true;
     } catch (e) {
       state = ManualEntryState(isSaving: false, error: e.toString());

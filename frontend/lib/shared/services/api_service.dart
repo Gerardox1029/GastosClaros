@@ -4,6 +4,7 @@ import 'package:gastos_claros/core/api_config.dart';
 import 'package:gastos_claros/shared/models/balance_response.dart';
 import 'package:gastos_claros/shared/models/registro.dart';
 import 'package:gastos_claros/shared/models/yape_extraction_result.dart';
+import 'package:gastos_claros/shared/services/auth_session.dart';
 
 /// Servicio centralizado para comunicarse con el backend REST API.
 class ApiService {
@@ -15,11 +16,13 @@ class ApiService {
   Map<String, String> get _jsonHeaders => {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
+      if (AuthSession.token != null) 'Authorization': 'Bearer ${AuthSession.token}',
       };
 
   /// Headers que no fuerzan preflight CORS para peticiones GET.
   Map<String, String> get _readHeaders => {
         'Accept': 'application/json',
+      if (AuthSession.token != null) 'Authorization': 'Bearer ${AuthSession.token}',
       };
 
   // ──────────────────────────────────────────────
@@ -109,7 +112,7 @@ class ApiService {
   // ──────────────────────────────────────────────
 
   /// Guarda un registro manual (ingreso o gasto).
-  Future<String> saveManualEntry({
+  Future<ManualEntryResult> saveManualEntry({
     required double monto,
     String? nombre,
     required String descripcion,
@@ -136,9 +139,12 @@ class ApiService {
       if (response.statusCode == 200 || response.statusCode == 201) {
         final decoded = jsonDecode(response.body);
         if (decoded is Map<String, dynamic>) {
-          return (decoded['id'] as String?) ?? '';
+          return ManualEntryResult(
+            id: (decoded['id'] as String?) ?? '',
+            created: decoded['created'] != false,
+          );
         }
-        return '';
+        return const ManualEntryResult(id: '', created: true);
       } else {
         String errorMsg = 'Error al guardar registro';
         try {
@@ -240,6 +246,13 @@ class ApiService {
   void dispose() {
     _client.close();
   }
+}
+
+class ManualEntryResult {
+  final String id;
+  final bool created;
+
+  const ManualEntryResult({required this.id, required this.created});
 }
 
 /// Excepción personalizada para errores de la API.

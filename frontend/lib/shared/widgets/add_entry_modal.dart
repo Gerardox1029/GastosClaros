@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:gastos_claros/shared/models/registro.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +9,7 @@ import 'package:gastos_claros/core/theme.dart';
 import 'package:gastos_claros/shared/providers/app_providers.dart';
 import 'package:gastos_claros/shared/widgets/currency_widgets.dart';
 import 'package:gastos_claros/shared/models/yape_extraction_result.dart';
+import 'package:gastos_claros/shared/services/pwa_service.dart';
 
 /// Modal para agregar un Saldo (ingreso) o Gasto.
 /// Incluye upload Yape con extracción IA y formulario manual.
@@ -201,6 +203,9 @@ class _AddEntryModalState extends ConsumerState<AddEntryModal>
 
     if (success && mounted) {
       final messenger = ScaffoldMessenger.of(context);
+      if (ref.read(manualEntryProvider).created) {
+        unawaited(PwaService.notifySaved(widget.type, monto, _descripcionCtrl.text.trim()));
+      }
       final captureKey = _activeCapture?.receiptKey;
       if (captureKey != null) {
         _savedCaptureIds[captureKey] = ref.read(manualEntryProvider).savedId!;
@@ -215,11 +220,13 @@ class _AddEntryModalState extends ConsumerState<AddEntryModal>
           !_savedCaptureIds.containsKey(capture.receiptKey)).toList() ?? [];
       if (captureKey != null && pending.isNotEmpty) {
         _populateFromResult(pending.first);
-        messenger.showSnackBar(const SnackBar(content: Text('Captura guardada. Revisa la siguiente.')));
+        messenger.showSnackBar(SnackBar(content: Text(
+          '$typeLabel de S/ ${monto.toStringAsFixed(2)} guardado. Revisa la siguiente captura.',
+        )));
         return;
       }
       Navigator.of(context).pop();
-      _showSuccessSnack(messenger);
+      _showSuccessSnack(messenger, monto);
     }
   }
 
@@ -258,10 +265,10 @@ class _AddEntryModalState extends ConsumerState<AddEntryModal>
     }
   }
 
-  void _showSuccessSnack(ScaffoldMessengerState messenger) {
+  void _showSuccessSnack(ScaffoldMessengerState messenger, double monto) {
     messenger.showSnackBar(
       SnackBar(
-        content: Text('$typeLabel agregado exitosamente'),
+        content: Text('$typeLabel de S/ ${monto.toStringAsFixed(2)} guardado correctamente'),
         backgroundColor: AppColors.successGreen,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

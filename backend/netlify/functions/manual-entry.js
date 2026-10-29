@@ -2,6 +2,8 @@ const { connectToDatabase } = require('../../lib/db');
 const Ingreso = require('../../models/Ingreso');
 const Gasto = require('../../models/Gasto');
 const { encryptDocument } = require('../../lib/encryption');
+const { authFailure } = require('../../lib/auth');
+const { sendSavedPush } = require('../../lib/push');
 
 /**
  * POST /api/manual-entry
@@ -9,6 +11,8 @@ const { encryptDocument } = require('../../lib/encryption');
  * Body: { monto, nombre, descripcion, fecha, type }
  */
 exports.handler = async (event) => {
+  const denied = authFailure(event);
+  if (denied) return denied;
   // CORS preflight
   if (event.httpMethod === 'OPTIONS') {
     return {
@@ -98,12 +102,15 @@ exports.handler = async (event) => {
     const Model = type === 'ingreso' ? Ingreso : Gasto;
     // The same receipt (including retries) always targets the same primary key.
     // OCR itself never writes: only this explicit save inserts a record.
-    const saved = receiptKey
+    const result = receiptKey
       ? await Model.findOneAndUpdate(
           { _id: receiptKey.slice(0, 24) }, { $setOnInsert: encryptedData },
-          { upsert: true, new: true, runValidators: true },
+          { upsert: true, new: true, runValidators: true, includeResultMetadata: true },
         )
       : await Model.create(encryptedData);
+    const saved = result.value || result;
+    const created = !receiptKey || result.lastErrorObject?.updatedExisting !== true;
+    if (created) await sendSavedPush(type, docData.monto, docData.descripcion);
 
     return {
       statusCode: 201,
@@ -114,6 +121,7 @@ exports.handler = async (event) => {
       body: JSON.stringify({
         success: true,
         id: saved._id.toString(),
+        created,
       }),
     };
   } catch (error) {

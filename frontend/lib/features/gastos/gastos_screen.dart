@@ -7,6 +7,7 @@ import 'package:gastos_claros/shared/widgets/currency_widgets.dart';
 import 'package:gastos_claros/shared/widgets/loading_spinner.dart';
 import 'package:gastos_claros/shared/models/registro.dart';
 import 'package:gastos_claros/shared/models/balance_response.dart';
+import 'package:gastos_claros/shared/widgets/app_options_menu.dart';
 
 /// Sección Gastos — muestra resumen de gastos y historial reciente.
 class GastosScreen extends ConsumerWidget {
@@ -40,10 +41,8 @@ class GastosScreen extends ConsumerWidget {
                       'Mis Gastos',
                       style: Theme.of(context).textTheme.headlineMedium,
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.refresh_rounded,
-                          color: AppColors.mutedText),
-                      onPressed: () {
+                    AppOptionsMenu(
+                      onRefresh: () {
                         ref.invalidate(balanceProvider);
                         ref.invalidate(gastosHistoryProvider);
                       },

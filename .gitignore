@@ -7,7 +7,6 @@
 # ─── Node.js / Backend ─────────────────────────────────
 backend/node_modules/
 backend/.netlify/
-backend/package-lock.json
 
 # ─── Flutter / Dart ────────────────────────────────────
 frontend/.dart_tool/
@@ -16,7 +15,6 @@ frontend/.flutter-plugins-dependencies
 frontend/.packages
 frontend/build/
 frontend/.pub-cache/
-frontend/pubspec.lock
 
 # ─── Android ───────────────────────────────────────────
 frontend/android/.gradle/

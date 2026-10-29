@@ -1,3 +1,4 @@
+jest.mock('../lib/auth', () => ({ authFailure: () => null }));
 jest.mock('../lib/db', () => ({ connectToDatabase: jest.fn() }));
 jest.mock('../models/Ingreso', () => ({ create: jest.fn() }));
 jest.mock('../models/Gasto', () => ({ create: jest.fn() }));

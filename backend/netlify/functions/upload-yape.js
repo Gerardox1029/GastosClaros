@@ -1,8 +1,11 @@
 const { createHash } = require('crypto');
 const { createReceiptReader } = require('../../lib/local-ocr');
 const { reply } = require('../../lib/http');
+const { authFailure } = require('../../lib/auth');
 
 exports.handler = async (event) => {
+  const denied = authFailure(event);
+  if (denied) return denied;
   if (event.httpMethod === 'OPTIONS') return reply(200, {});
   if (event.httpMethod !== 'POST') return reply(405, { error: 'Use POST.' });
   let body;

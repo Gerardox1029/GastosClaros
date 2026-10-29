@@ -2,6 +2,7 @@ const { connectToDatabase } = require('../../lib/db');
 const Ingreso = require('../../models/Ingreso');
 const Gasto = require('../../models/Gasto');
 const { decryptDocument } = require('../../lib/encryption');
+const { authFailure } = require('../../lib/auth');
 
 /**
  * GET /api/history/:type
@@ -10,6 +11,8 @@ const { decryptDocument } = require('../../lib/encryption');
  * Query params: limit (default: 3)
  */
 exports.handler = async (event) => {
+  const denied = authFailure(event);
+  if (denied) return denied;
   // Solo permitir GET
   if (event.httpMethod !== 'GET') {
     return {

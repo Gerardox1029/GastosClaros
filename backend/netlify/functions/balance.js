@@ -2,6 +2,7 @@ const { connectToDatabase } = require('../../lib/db');
 const Ingreso = require('../../models/Ingreso');
 const Gasto = require('../../models/Gasto');
 const { decryptDocument } = require('../../lib/encryption');
+const { authFailure } = require('../../lib/auth');
 
 /**
  * GET /api/balance
@@ -9,6 +10,8 @@ const { decryptDocument } = require('../../lib/encryption');
  * Query params: filter = 1D | 7D | 14D | 1M
  */
 exports.handler = async (event) => {
+  const denied = authFailure(event);
+  if (denied) return denied;
   // Solo permitir GET
   if (event.httpMethod !== 'GET') {
     return {

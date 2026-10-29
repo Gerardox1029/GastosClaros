@@ -1,27 +1,42 @@
 [build]
-  base    = "backend"
-  command = "npm install"
-  publish = "public"
-  functions = "netlify/functions"
+  command = "bash scripts/netlify-build.sh"
+  publish = "frontend/build/web"
+  functions = "backend/netlify/functions"
+
+[build.environment]
+  NODE_VERSION = "22"
 
 [functions]
   node_bundler = "esbuild"
   external_node_modules = ["@techstark/opencv-js", "tesseract.js", "tesseract.js-core", "@tesseract.js-data/spa", "sharp"]
-  directory    = "backend/netlify/functions"
-
-[dev]
-  port       = 8888
-  targetPort = 3000
-  command    = "npm run dev"
 
 [[redirects]]
   from   = "/api/*"
   to     = "/.netlify/functions/:splat"
   status = 200
+  force = true
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
 
 [[headers]]
-  for = "/.netlify/functions/*"
+  for = "/api/*"
   [headers.values]
-    Access-Control-Allow-Origin  = "*"
-    Access-Control-Allow-Methods = "GET, POST, PATCH, DELETE, OPTIONS"
-    Access-Control-Allow-Headers = "Content-Type"
+    Cache-Control = "no-store"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/flutter_bootstrap.js"
+  [headers.values]
+    Cache-Control = "no-cache"

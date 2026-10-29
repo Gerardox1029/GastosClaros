@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gastos_claros/core/theme.dart';
-import 'package:gastos_claros/features/splash/splash_screen.dart';
+import 'package:gastos_claros/features/auth/auth_gate.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 Future<void> main() async {
@@ -23,7 +23,7 @@ class GastosClarosApp extends StatelessWidget {
       title: 'GastosClaros',
       debugShowCheckedModeBanner: false,
       theme: appTheme,
-      home: const SplashScreen(),
+      home: const AuthGate(),
       locale: const Locale('es', '419'),
     );
   }
