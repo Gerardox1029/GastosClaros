@@ -104,6 +104,7 @@ class _SaldoScreenState extends ConsumerState<SaldoScreen>
 
             // Lista de ingresos
             historyAsync.when(
+              skipLoadingOnReload: true,
               loading: () => const SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.all(AppSpacing.xl),
@@ -133,12 +134,13 @@ class _SaldoScreenState extends ConsumerState<SaldoScreen>
             ),
 
             historyAsync.maybeWhen(
+              skipLoadingOnReload: true,
               data: (registros) =>
                   registros.length >= ref.watch(ingresosHistoryLimitProvider)
                       ? SliverToBoxAdapter(
                           child: Center(
                             child: TextButton(
-                              onPressed: () => ref
+                              onPressed: historyAsync.isLoading ? null : () => ref
                                   .read(ingresosHistoryLimitProvider.notifier)
                                   .state += 5,
                               child: const Text('Ver más ingresos'),

@@ -35,10 +35,12 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(SaldoDisplay), findsOneWidget);
+    expect(find.byType(BottomAppBar), findsNothing);
+    expect(tester.getTopLeft(find.byKey(const ValueKey('dashboard-top-nav'))).dy, 0);
     expect(find.text('Aún no hay registros'), findsOneWidget);
     await tester.tap(
       find.descendant(
-        of: find.byType(BottomAppBar),
+        of: find.byKey(const ValueKey('dashboard-top-nav')),
         matching: find.text('Gastos'),
       ),
     );

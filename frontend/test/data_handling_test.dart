@@ -16,6 +16,47 @@ void main() {
     expect(formatMonto(7.5, showSign: true), '+S/. 7,50');
   });
 
+  for (final type in ['ingresos', 'gastos']) {
+    test('$type history grows from 3 to 8 to 13 records', () async {
+      final limits = <int>[];
+      final api = ApiService(client: MockClient((request) async {
+        final limit = int.parse(request.url.queryParameters['limit']!);
+        limits.add(limit);
+        return http.Response(
+            jsonEncode({
+              'data': List.generate(
+                  limit,
+                  (i) => {
+                        '_id': '$i',
+                        'monto': 10,
+                        'nombre': 'Movimiento $i',
+                        'descripcion': 'Prueba',
+                        'fecha': '2026-10-29T12:00:00Z',
+                        'tipo_registro': 'manual',
+                      })
+            }),
+            200);
+      }));
+      final container = ProviderContainer(overrides: [
+        apiServiceProvider.overrideWithValue(api),
+      ]);
+      addTearDown(container.dispose);
+      addTearDown(api.dispose);
+      final history =
+          type == 'ingresos' ? ingresosHistoryProvider : gastosHistoryProvider;
+      final limit = type == 'ingresos'
+          ? ingresosHistoryLimitProvider
+          : gastosHistoryLimitProvider;
+      for (final count in [3, 8, 13]) {
+        if (count > 3) container.read(limit.notifier).state += 5;
+        final records = await container.read(history.future);
+        expect(records.length, count);
+        expect(records.first.nombre, 'Movimiento 0');
+      }
+      expect(limits, [3, 8, 13]);
+    });
+  }
+
   group('BalanceResponse.fromJson', () {
     test('parses the production zero-balance response', () {
       final balance = BalanceResponse.fromJson({

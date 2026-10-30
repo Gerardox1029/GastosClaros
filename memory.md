@@ -148,3 +148,7 @@ Se corrigió el permiso INTERNET de Android y la URL de producción a `https://g
 ## Corrección con comprobante real — 16/10/2026
 
 Se reprodujo que PSM 6 omitía el monto de gran tamaño. Se corrigió mediante detección de la tarjeta clara con OpenCV y Tesseract PSM 3/11; la captura aportada se leyó con todos los campos y la nota sin etiqueta. Extracción separada de persistencia: subir imágenes no altera el saldo; Guardar usa identidad del comprobante y upsert atómico para prevenir duplicados por reintentos. La UI bloquea el doble envío y mantiene la revisión individual de múltiples capturas. Las imágenes privadas de prueba no se incluyen en Git.
+
+## Cambios — 29/10/2026
+
+Asistente con modelo fijo `gemini-3.8-flash`. Navegación Saldo / + / Gastos fija arriba. Historial inicia en 3 y aumenta de 5 en 5, conservando la lista durante la carga y bloqueando clics simultáneos. Orden estable por fecha e ID.

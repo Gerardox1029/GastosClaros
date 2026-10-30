@@ -175,7 +175,7 @@ Center(
 
 ---
 
-## 📱 Bottom Navigation Bar
+## 📱 Navegación superior (actualizado 29/10/2026)
 
 ```
 ┌────────────────────────────────────────────────────┐
@@ -185,8 +185,9 @@ Center(
 └────────────────────────────────────────────────────┘
 ```
 
-- **Fondo:** `Surface Purple (#2D2845)` con borde superior sutil.
-- **Botón central "+":** Circular, gradiente Accent Purple, elevado `-20px` sobre la barra, con sombra glow.
+- Barra fija en la parte superior dentro del área segura, con Saldo / + / Gastos.
+- **Fondo:** `Surface Purple (#2D2845)` con borde inferior sutil.
+- **Botón central "+":** Circular, gradiente Accent Purple, centrado en la barra, con sombra glow.
 - **Items activos:** Accent Purple icon + label.
 - **Items inactivos:** Muted Purple icon + label.
 

@@ -48,7 +48,7 @@ exports.handler = async (event) => {
 
     // Consultar documentos ordenados por fecha descendente
     const documents = await Model.find()
-      .sort({ fecha: -1 })
+      .sort({ fecha: -1, _id: -1 })
       .limit(sanitizedLimit + 1)
       .lean();
 

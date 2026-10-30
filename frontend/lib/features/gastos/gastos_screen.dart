@@ -79,6 +79,7 @@ class GastosScreen extends ConsumerWidget {
             const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.sm)),
 
             historyAsync.when(
+              skipLoadingOnReload: true,
               loading: () => const SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.all(AppSpacing.xl),
@@ -104,12 +105,13 @@ class GastosScreen extends ConsumerWidget {
             ),
 
             historyAsync.maybeWhen(
+              skipLoadingOnReload: true,
               data: (registros) =>
                   registros.length >= ref.watch(gastosHistoryLimitProvider)
                       ? SliverToBoxAdapter(
                           child: Center(
                             child: TextButton(
-                              onPressed: () => ref
+                              onPressed: historyAsync.isLoading ? null : () => ref
                                   .read(gastosHistoryLimitProvider.notifier)
                                   .state += 5,
                               child: const Text('Ver más gastos'),

@@ -16,7 +16,8 @@ En desarrollo, crea `backend/.env` y añade estos nombres. El archivo está igno
 | `VAPID_PRIVATE_KEY` | Clave privada Web Push; solo en Netlify. |
 | `VAPID_SUBJECT` | Contacto VAPID, por ejemplo `mailto:tu-correo@ejemplo.com`. |
 | `GEMINI_API_KEY` | Opcional, para el asistente financiero. |
-| `GEMINI_MODEL` | Opcional, modelo del asistente. |
+
+El modelo `gemini-3.8-flash` se define en código. Elimina `GEMINI_MODEL` de Netlify si la importaste como secreto para evitar coincidencias del escáner con el nombre público del modelo.
 
 Genera el par VAPID una sola vez con `cd backend && npx web-push generate-vapid-keys`. Conserva ambos valores para futuros despliegues: cambiar el par obliga a volver a activar avisos en cada dispositivo.
 

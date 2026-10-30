@@ -8,8 +8,7 @@ import 'package:gastos_claros/shared/widgets/add_entry_modal.dart';
 import 'package:gastos_claros/features/saldo/saldo_screen.dart';
 import 'package:gastos_claros/features/gastos/gastos_screen.dart';
 
-/// Dashboard principal con Bottom Navigation Bar de 3 tabs
-/// y botón "+" elevado central con opciones Gasto/Saldo.
+/// Dashboard con navegación superior y botón central para agregar movimientos.
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
 
@@ -94,61 +93,60 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
 
     return Scaffold(
       backgroundColor: AppColors.deepPurpleBg,
-      body: Stack(children: [
-        IndexedStack(index: selectedTab, children: _screens),
-        Positioned(right: 16, bottom: 24, child: FloatingActionButton(
-          heroTag: 'financial-assistant', tooltip: 'Asistente financiero',
-          backgroundColor: AppColors.accentPurple,
-          onPressed: () => showModalBottomSheet<void>(
-            context: context, isScrollControlled: true, useSafeArea: true,
-            backgroundColor: Colors.transparent,
-            builder: (_) => const FinancialChat()),
-          child: const Icon(Icons.chat_bubble_outline_rounded),
-        )),
-      ]),
-      bottomNavigationBar: _buildBottomNav(selectedTab),
-      floatingActionButton: _buildFab(),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      body: SafeArea(
+        child: Column(children: [
+          _buildTopNav(selectedTab),
+          Expanded(
+              child: Stack(children: [
+            IndexedStack(index: selectedTab, children: _screens),
+            Positioned(
+                right: 16,
+                bottom: 24,
+                child: FloatingActionButton(
+                  heroTag: 'financial-assistant',
+                  tooltip: 'Asistente financiero',
+                  backgroundColor: AppColors.accentPurple,
+                  onPressed: () => showModalBottomSheet<void>(
+                      context: context,
+                      isScrollControlled: true,
+                      useSafeArea: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (_) => const FinancialChat()),
+                  child: const Icon(Icons.chat_bubble_outline_rounded),
+                )),
+          ])),
+        ]),
+      ),
     );
   }
 
-  Widget _buildBottomNav(int selectedTab) {
-    return BottomAppBar(
-      color: AppColors.surfacePurple,
-      elevation: 0,
-      notchMargin: 10,
-      shape: const CircularNotchedRectangle(),
-      child: Container(
-        decoration: BoxDecoration(
-          border: Border(
-            top: BorderSide(
-              color: AppColors.mutedPurple.withOpacity(0.2),
-              width: 1,
-            ),
-          ),
-        ),
-        height: 64,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            // Tab Saldo
-            _buildNavItem(
+  Widget _buildTopNav(int selectedTab) {
+    return Container(
+      key: const ValueKey('dashboard-top-nav'),
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.surfacePurple,
+        border: Border(
+            bottom: BorderSide(
+          color: AppColors.mutedPurple.withOpacity(0.2),
+        )),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          _buildNavItem(
               index: 0,
               selectedIndex: selectedTab,
               icon: Icons.account_balance_wallet_rounded,
-              label: 'Saldo',
-            ),
-            // Espacio para el FAB
-            const SizedBox(width: 72),
-            // Tab Gastos
-            _buildNavItem(
+              label: 'Saldo'),
+          Semantics(
+              button: true, label: 'Agregar movimiento', child: _buildFab()),
+          _buildNavItem(
               index: 1,
               selectedIndex: selectedTab,
               icon: Icons.receipt_long_rounded,
-              label: 'Gastos',
-            ),
-          ],
-        ),
+              label: 'Gastos'),
+        ],
       ),
     );
   }
